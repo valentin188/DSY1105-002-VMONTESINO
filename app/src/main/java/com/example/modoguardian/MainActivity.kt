@@ -1,19 +1,24 @@
 package com.example.modoguardian
 
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -32,19 +37,28 @@ class MainActivity : ComponentActivity() {
             ModoGuardianTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
                     val navController = rememberNavController()
-                    val context = LocalContext.current
 
-                    LaunchedEffect(Unit) {
+                    // Cierra la sesión, borra las credenciales y retira la pantalla
+                    // protegida del historial para impedir volver con el botón Atrás.
+                    val cerrarSesion: (String) -> Unit = { rutaActual ->
+                        loginViewModel.cerrarSesion()
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(rutaActual) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+
+                    LaunchedEffect(navController) {
                         loginViewModel.navigationEvent.collect { event ->
                             when (event) {
                                 is NavigationEvent.NavigateTo -> {
                                     navController.navigate(event.route) {
                                         popUpTo(Screen.Login.route) { inclusive = true }
+                                        launchSingleTop = true
                                     }
                                 }
-                                is NavigationEvent.NavigateBack, NavigationEvent.PopBackStack -> {
-                                    navController.popBackStack()
-                                }
+                                is NavigationEvent.NavigateBack,
+                                NavigationEvent.PopBackStack -> navController.popBackStack()
                             }
                         }
                     }
@@ -57,48 +71,49 @@ class MainActivity : ComponentActivity() {
                             LoginScreen(viewModel = loginViewModel)
                         }
 
-                        // Pantallas para cada rol con contenido centrado
                         composable(Screen.HomeAdmin.route) {
-                            Toast.makeText(context, "Bienvenido Administrador", Toast.LENGTH_SHORT).show()
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Bienvenido Administrador",
-                                    style = MaterialTheme.typography.headlineSmall
-                                )
+                            InicioPorRol("Bienvenido Administrador") {
+                                cerrarSesion(Screen.HomeAdmin.route)
                             }
                         }
 
                         composable(Screen.HomeSupervisor.route) {
-                            Toast.makeText(context, "Bienvenido Supervisor", Toast.LENGTH_SHORT).show()
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Pantalla Principal Supervisor",
-                                    style = MaterialTheme.typography.headlineSmall
-                                )
+                            InicioPorRol("Bienvenido Supervisor") {
+                                cerrarSesion(Screen.HomeSupervisor.route)
                             }
                         }
 
                         composable(Screen.HomeOperador.route) {
-                            Toast.makeText(context, "Bienvenido Operador", Toast.LENGTH_SHORT).show()
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Pantalla Principal Operador",
-                                    style = MaterialTheme.typography.headlineSmall
-                                )
+                            InicioPorRol("Bienvenido Operador") {
+                                cerrarSesion(Screen.HomeOperador.route)
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun InicioPorRol(
+    titulo: String,
+    onCerrarSesion: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = titulo,
+            style = MaterialTheme.typography.headlineSmall
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(onClick = onCerrarSesion) {
+            Text("Cerrar sesión")
         }
     }
 }
