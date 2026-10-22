@@ -1,5 +1,6 @@
 package com.example.modoguardian.viewmodel
 
+import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.modoguardian.model.LoginErrores
@@ -17,11 +18,9 @@ import kotlinx.coroutines.launch
 
 class LoginViewModel : ViewModel() {
 
-    // Estado observable de la interfaz
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
-    // Flujo de eventos de navegación único
     private val _navigationEvent = MutableSharedFlow<NavigationEvent>()
     val navigationEvent: SharedFlow<NavigationEvent> = _navigationEvent.asSharedFlow()
 
@@ -45,47 +44,65 @@ class LoginViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Valida que el email tenga formato correcto y la contraseña mínimo 6 caracteres.
-     */
     fun validarFormulario(state: LoginUiState): Boolean {
-        val emailValido = android.util.Patterns.EMAIL_ADDRESS.matcher(state.email).matches()
+        val emailValido = Patterns.EMAIL_ADDRESS.matcher(state.email.trim()).matches()
         val passValida = state.password.length >= 6
         return emailValido && passValida
     }
 
-    /**
-     * Autenticación con los 3 usuarios de prueba requeridos por la pauta.
-     */
     fun autenticar() {
+        val state = _uiState.value
+        if (state.isLoading) return
+
+        // El botón permanece disponible; aquí se valida al presionarlo.
+        if (!validarFormulario(state)) {
+            _uiState.update {
+                it.copy(
+                    errores = LoginErrores(
+                        emailError = if (!Patterns.EMAIL_ADDRESS.matcher(it.email.trim()).matches())
+                            "Ingresa un correo válido" else null,
+                        passwordError = if (it.password.length < 6)
+                            "La contraseña debe tener al menos 6 caracteres" else null
+                    )
+                )
+            }
+            return
+        }
+                
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { it.copy(isLoading = true, errores = LoginErrores()) }
 
             val email = _uiState.value.email.trim()
-            val pass = _uiState.value.password.trim()
+            val pass = _uiState.value.password
 
-            when {
-                email == "admin@guardian.test" && pass == "123456" -> {
-                    _uiState.update { it.copy(rolLogueado = "Admin", isLoading = false) }
-                    _navigationEvent.emit(NavigationEvent.NavigateTo(Screen.HomeAdmin.route))
+            val destino = when {
+                email == "admin@guardian.test" && pass == "123456" ->
+                    Pair("Admin", Screen.HomeAdmin.route)
+                email == "supervisor@guardian.test" && pass == "123456" ->
+                    Pair("Supervisor", Screen.HomeSupervisor.route)
+                email == "operador@guardian.test" && pass == "123456" ->
+                    Pair("Operador", Screen.HomeOperador.route)
+                else -> null
+            }
+
+            if (destino != null) {
+                _uiState.update {
+                    it.copy(rolLogueado = destino.first, isLoading = false)
                 }
-                email == "supervisor@guardian.test" && pass == "123456" -> {
-                    _uiState.update { it.copy(rolLogueado = "Supervisor", isLoading = false) }
-                    _navigationEvent.emit(NavigationEvent.NavigateTo(Screen.HomeSupervisor.route))
-                }
-                email == "operador@guardian.test" && pass == "123456" -> {
-                    _uiState.update { it.copy(rolLogueado = "Operador", isLoading = false) }
-                    _navigationEvent.emit(NavigationEvent.NavigateTo(Screen.HomeOperador.route))
-                }
-                else -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errores = LoginErrores(generalError = "Credenciales incorrectas")
-                        )
-                    }
+                _navigationEvent.emit(NavigationEvent.NavigateTo(destino.second))
+            } else {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errores = LoginErrores(generalError = "Credenciales incorrectas")
+                    )
                 }
             }
         }
+    }
+
+    // Regresa al formulario sin credenciales ni rol autenticado.
+    fun cerrarSesion() {
+        _uiState.value = LoginUiState()
     }
 }
