@@ -133,7 +133,7 @@ private fun FormularioLogin(
 
     Button(
         onClick = { viewModel.autenticar() },
-        enabled = state.isLoginEnabled && !state.isLoading,
+        enabled = !state.isLoading,
         modifier = Modifier
             .fillMaxWidth()
             .height(50.dp)
@@ -144,7 +144,7 @@ private fun FormularioLogin(
                 modifier = Modifier.size(24.dp)
             )
         } else {
-            Text("Ingresar")
+            Text("Iniciar sesión")
         }
     }
 }
