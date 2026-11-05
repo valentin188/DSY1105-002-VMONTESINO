@@ -1,6 +1,9 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    // Plugins requeridos para Room y procesamiento de anotaciones
+    alias(libs.plugins.kotlin.android)
+    id("kotlin-kapt")
 }
 
 android {
@@ -36,7 +39,6 @@ android {
 }
 
 dependencies {
-    // --- Dependencias base (Versiones estables para API 35) ---
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
     implementation("androidx.activity:activity-compose:1.9.0")
     implementation("androidx.compose.material3:material3")
@@ -55,7 +57,28 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended:1.6.8")
     implementation("androidx.compose.material3:material3-window-size-class:1.2.1")
 
-    // --- Pruebas ---
+    // Consumo de API REST: Retrofit & Corrutinas
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
+
+    // Módulo Integral: Room Database, DataStore Preferences y Coil
+    val roomVersion = "2.6.1"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    kapt("androidx.room:room-compiler:$roomVersion")
+
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // Kotest, MockK, JUnit 5 y Coroutines Test
+    testImplementation("io.kotest:kotest-runner-junit5:5.8.6")
+    testImplementation("io.kotest:kotest-assertions-core:5.8.8")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.6")
+    testImplementation("io.mockk:mockk:1.13.10")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
+
+    // --- Pruebas de UI (Compose UI Test) ---
     testImplementation(libs.junit)
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.06.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
@@ -63,4 +86,9 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     debugImplementation("androidx.compose.ui:ui-tooling")
+}
+
+// Configuración obligatoria para JUnit 5 (Guía 15)
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
 }
