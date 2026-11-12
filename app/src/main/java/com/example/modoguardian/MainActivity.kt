@@ -11,6 +11,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.modoguardian.model.Role
 import com.example.modoguardian.navigation.NavigationEvent
 import com.example.modoguardian.navigation.Screen
 import com.example.modoguardian.ui.screens.*
@@ -45,7 +46,6 @@ class MainActivity : ComponentActivity() {
                 val rutaActual =
                     backStackEntry?.destination?.route
 
-                // Protección de pantallas privadas
                 LaunchedEffect(currentUser, rutaActual) {
                     if (
                         rutaActual != null &&
@@ -63,12 +63,9 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Navegación después del Login
                 LaunchedEffect(loginViewModel) {
                     loginViewModel.navigationEvent.collect { event ->
-
                         when (event) {
-
                             is NavigationEvent.NavigateTo -> {
                                 val sesionIniciada =
                                     authViewModel.iniciarSesionDemo(
@@ -76,7 +73,9 @@ class MainActivity : ComponentActivity() {
                                     )
 
                                 if (sesionIniciada) {
-                                    navController.navigate(event.route) {
+                                    navController.navigate(
+                                        event.route
+                                    ) {
                                         popUpTo(Screen.Login.route) {
                                             inclusive = true
                                         }
@@ -105,7 +104,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // INICIO POR ROL
+                    // INICIO
                     val homeRoutes = listOf(
                         Screen.HomeAdmin.route,
                         Screen.HomeSupervisor.route,
@@ -113,9 +112,7 @@ class MainActivity : ComponentActivity() {
                     )
 
                     homeRoutes.forEach { route ->
-
                         composable(route) {
-
                             HomeScreen(
                                 user = currentUser,
                                 eventsState = eventsState,
@@ -137,9 +134,7 @@ class MainActivity : ComponentActivity() {
                                 },
 
                                 onOpenAlerts = {
-                                    navController.navigate(
-                                        Screen.Events.route
-                                    )
+                                    navController.navigate("alerts")
                                 },
 
                                 onOpenEvent = { eventId ->
@@ -147,21 +142,20 @@ class MainActivity : ComponentActivity() {
                                         .seleccionarEventoPorId(eventId)
 
                                     navController.navigate(
-                                        Screen.Events.route
+                                        Screen.EventDetail
+                                            .createRoute(eventId)
                                     )
                                 }
                             )
                         }
                     }
 
-                    // LISTADO DE CÁMARAS
+                    // CÁMARAS
                     composable("cameras") {
-
                         CamerasScreen(
                             onBack = {
                                 navController.popBackStack()
                             },
-
                             onCameraClick = { cameraId ->
                                 navController.navigate(
                                     "camera/$cameraId"
@@ -172,9 +166,9 @@ class MainActivity : ComponentActivity() {
 
                     // DETALLE DE CÁMARA
                     composable("camera/{cameraId}") { entry ->
-
                         val cameraId =
-                            entry.arguments?.getString("cameraId")
+                            entry.arguments
+                                ?.getString("cameraId")
                                 .orEmpty()
 
                         CameraDetailScreen(
@@ -185,9 +179,26 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // EVENTOS
-                    composable(Screen.Events.route) {
+                    // ALERTAS
+                    composable("alerts") {
+                        AlertsScreen(
+                            eventsState = eventsState,
 
+                            onBack = {
+                                navController.popBackStack()
+                            },
+
+                            onStatusChange = { eventId, status ->
+                                eventsViewModel.cambiarEstadoEvento(
+                                    eventId,
+                                    status
+                                )
+                            }
+                        )
+                    }
+
+                    // HISTORIAL DE EVENTOS
+                    composable(Screen.Events.route) {
                         EventsScreen(
                             currentUser = currentUser,
                             eventsState = eventsState,
@@ -195,6 +206,11 @@ class MainActivity : ComponentActivity() {
                             onEventClick = { eventId ->
                                 eventsViewModel
                                     .seleccionarEventoPorId(eventId)
+
+                                navController.navigate(
+                                    Screen.EventDetail
+                                        .createRoute(eventId)
+                                )
                             },
 
                             onNavigateToProfile = {
@@ -206,8 +222,7 @@ class MainActivity : ComponentActivity() {
                             onNavigateToAdmin = {
                                 if (
                                     currentUser?.rol ==
-                                    com.example.modoguardian.model.Role
-                                        .ADMINISTRADOR
+                                    Role.ADMINISTRADOR
                                 ) {
                                     navController.navigate(
                                         Screen.Admin.route
@@ -217,9 +232,42 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
+                    // DETALLE DE EVENTO
+                    composable(Screen.EventDetail.route) { entry ->
+                        val eventId =
+                            entry.arguments
+                                ?.getString("eventId")
+                                .orEmpty()
+
+                        val selectedEvent = when (val state = eventsState) {
+                            is com.example.modoguardian.ui.state
+                                .UiState.Success -> {
+                                state.data.find {
+                                    it.id == eventId
+                                }
+                            }
+                            else -> null
+                        }
+
+                        EventDetailScreen(
+                            event = selectedEvent,
+
+                            onBack = {
+                                navController.popBackStack()
+                            },
+
+                            onStatusChange = { status, photoUri ->
+                                eventsViewModel.cambiarEstadoEvento(
+                                    eventId,
+                                    status,
+                                    photoUri
+                                )
+                            }
+                        )
+                    }
+
                     // PERFIL
                     composable(Screen.Perfil.route) {
-
                         ProfileScreen(
                             user = currentUser,
 
@@ -248,13 +296,11 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // PANEL ADMIN TEMPORAL
+                    // ADMINISTRACIÓN TEMPORAL
                     composable(Screen.Admin.route) {
-
                         if (
                             currentUser?.rol ==
-                            com.example.modoguardian.model.Role
-                                .ADMINISTRADOR
+                            Role.ADMINISTRADOR
                         ) {
                             EventsScreen(
                                 currentUser = currentUser,
@@ -263,6 +309,11 @@ class MainActivity : ComponentActivity() {
                                 onEventClick = { eventId ->
                                     eventsViewModel
                                         .seleccionarEventoPorId(eventId)
+
+                                    navController.navigate(
+                                        Screen.EventDetail
+                                            .createRoute(eventId)
+                                    )
                                 },
 
                                 onNavigateToProfile = {
