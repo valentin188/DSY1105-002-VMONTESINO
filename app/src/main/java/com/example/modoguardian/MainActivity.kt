@@ -7,6 +7,7 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -33,6 +34,24 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val currentUser by
                     authViewModel.currentUser.collectAsState()
+                val backStackEntry by
+                navController.currentBackStackEntryAsState()
+                val rutaActual = backStackEntry?.destination?.route
+                LaunchedEffect(currentUser, rutaActual) {
+                    if (
+                        rutaActual != null &&
+                            rutaActual != Screen.Login.route &&
+                            currentUser == null
+                    ) {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(navController.graph.id) {
+                                inclusive = false
+                            }
+                            launchSingleTop = true
+                        }
+                    }
+                }
+
                 val eventsState by
                     eventsViewModel.eventsState.collectAsState()
                 LaunchedEffect(loginViewModel) {
