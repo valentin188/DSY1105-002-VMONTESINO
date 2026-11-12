@@ -17,9 +17,18 @@ import com.example.modoguardian.ui.components.ImagenInteligente
 fun ProfileScreen(
     user: User?,
     onBack: () -> Unit,
-    onPhotoUpdated: (String) -> Unit
+    onPhotoUpdated: (String) -> Unit,
+    onLogout: () -> Unit
 ) {
-    var fotoUri by remember { mutableStateOf<Uri?>(user?.fotoPerfilUri?.let { Uri.parse(it) }) }
+    var fotoUri by remember(user?.id, user?.fotoPerfilUri) {
+        mutableStateOf(
+            user?.fotoPerfilUri?.let { Uri.parse(it) }
+        )
+    }
+
+    var mostrarConfirmacion by remember {
+        mutableStateOf(false)
+    }
 
     Scaffold(
         topBar = {
@@ -27,12 +36,16 @@ fun ProfileScreen(
                 title = { Text("Mi Perfil") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver"
+                        )
                     }
                 }
             )
         }
     ) { padding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -40,31 +53,95 @@ fun ProfileScreen(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+
             ImagenInteligente(
                 imageUri = fotoUri,
                 onImageSelected = { uri ->
                     fotoUri = uri
-                    uri?.let { onPhotoUpdated(it.toString()) }
+                    uri?.let {
+                        onPhotoUpdated(it.toString())
+                    }
                 }
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = user?.nombre ?: "Usuario Desconocido",
+                text = user?.nombre ?: "Usuario desconocido",
                 style = MaterialTheme.typography.headlineMedium
             )
-            Spacer(modifier = Modifier.height(4.dp))
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             Text(
                 text = user?.email ?: "",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.height(12.dp))
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             AssistChip(
-                onClick = { },
-                label = { Text("Rol: ${user?.rol?.name ?: "SIN ROL"}") }
+                onClick = {},
+                label = {
+                    Text(
+                        "Rol: ${user?.rol?.name ?: "SIN ROL"}"
+                    )
+                }
             )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Button(
+                onClick = {
+                    mostrarConfirmacion = true
+                },
+                enabled = user != null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor =
+                        MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Cerrar sesión")
+            }
         }
+    }
+
+    if (mostrarConfirmacion) {
+        AlertDialog(
+            onDismissRequest = {
+                mostrarConfirmacion = false
+            },
+            title = {
+                Text("Cerrar sesión")
+            },
+            text = {
+                Text(
+                    "¿Estás seguro de que deseas salir de INSERCODE?"
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        mostrarConfirmacion = false
+                        onLogout()
+                    }
+                ) {
+                    Text("Cerrar sesión")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        mostrarConfirmacion = false
+                    }
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 }
