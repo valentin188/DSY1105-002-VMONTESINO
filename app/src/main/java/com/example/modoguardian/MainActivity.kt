@@ -22,34 +22,32 @@ import com.example.modoguardian.viewmodel.EventsViewModel
 import com.example.modoguardian.viewmodel.LoginViewModel
 
 class MainActivity : ComponentActivity() {
-
     private val authViewModel: AuthViewModel by viewModels()
     private val eventsViewModel: EventsViewModel by viewModels()
     private val loginViewModel: LoginViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContent {
             ModoGuardianTheme {
-
                 val navController = rememberNavController()
-
                 val currentUser by
                     authViewModel.currentUser.collectAsState()
-
                 val eventsState by
                     eventsViewModel.eventsState.collectAsState()
-
                 LaunchedEffect(loginViewModel) {
                     loginViewModel.navigationEvent.collect { event ->
                         when (event) {
                             is NavigationEvent.NavigateTo -> {
-                                navController.navigate(event.route) {
-                                    popUpTo(Screen.Login.route) {
-                                        inclusive = true
+                                val sesionIniciada =
+                                    authViewModel.iniciarSesionDemo(event.route)
+                                if (sesionIniciada) {
+                                    navController.navigate(event.route) {
+                                        popUpTo(Screen.Login.route) {
+                                            inclusive = true
+                                        }
+                                        launchSingleTop = true
                                     }
-                                    launchSingleTop = true
                                 }
                             }
 
