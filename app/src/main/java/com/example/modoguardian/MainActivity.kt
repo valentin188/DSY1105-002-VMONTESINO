@@ -112,11 +112,19 @@ class MainActivity : ComponentActivity() {
                             },
 
                             onPhotoUpdated = { uri ->
-                                authViewModel
-                                    .actualizarFotoPerfil(uri)
+                                authViewModel.actualizarFotoPerfil(uri)
+                            },
+
+                            onLogout = {
+                                loginViewModel.cerrarSesion()
+                                authViewModel.cerrarSesion()
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(navController.graph.id) {
+                                        inclusive = false
+                                    }
+                                    launchSingleTop = true
+                                }
                             }
-                        )
-                    }
 
                     composable(Screen.Events.route) {
                         EventsScreen(
