@@ -13,10 +13,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.modoguardian.navigation.NavigationEvent
 import com.example.modoguardian.navigation.Screen
-import com.example.modoguardian.ui.screens.EventsScreen
-import com.example.modoguardian.ui.screens.HomeScreen
-import com.example.modoguardian.ui.screens.LoginScreen
-import com.example.modoguardian.ui.screens.ProfileScreen
+import com.example.modoguardian.ui.screens.*
 import com.example.modoguardian.ui.theme.ModoGuardianTheme
 import com.example.modoguardian.viewmodel.AuthViewModel
 import com.example.modoguardian.viewmodel.EventsViewModel
@@ -36,7 +33,6 @@ class MainActivity : ComponentActivity() {
 
                 val navController = rememberNavController()
 
-                // Estados de la aplicación
                 val currentUser by
                     authViewModel.currentUser.collectAsState()
 
@@ -49,7 +45,7 @@ class MainActivity : ComponentActivity() {
                 val rutaActual =
                     backStackEntry?.destination?.route
 
-                // Protección básica de las pantallas
+                // Protección de pantallas privadas
                 LaunchedEffect(currentUser, rutaActual) {
                     if (
                         rutaActual != null &&
@@ -67,26 +63,21 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Eventos de navegación del Login
+                // Navegación después del Login
                 LaunchedEffect(loginViewModel) {
                     loginViewModel.navigationEvent.collect { event ->
 
                         when (event) {
 
                             is NavigationEvent.NavigateTo -> {
-
                                 val sesionIniciada =
                                     authViewModel.iniciarSesionDemo(
                                         event.route
                                     )
 
                                 if (sesionIniciada) {
-                                    navController.navigate(
-                                        event.route
-                                    ) {
-                                        popUpTo(
-                                            Screen.Login.route
-                                        ) {
+                                    navController.navigate(event.route) {
+                                        popUpTo(Screen.Login.route) {
                                             inclusive = true
                                         }
                                         launchSingleTop = true
@@ -102,7 +93,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Navegación principal
                 NavHost(
                     navController = navController,
                     startDestination = Screen.Login.route
@@ -115,7 +105,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // INICIO SEGÚN ROL
+                    // INICIO POR ROL
                     val homeRoutes = listOf(
                         Screen.HomeAdmin.route,
                         Screen.HomeSupervisor.route,
@@ -143,19 +133,18 @@ class MainActivity : ComponentActivity() {
                                 },
 
                                 onOpenCameras = {
-                                    // Paso 6: Cámaras
+                                    navController.navigate("cameras")
                                 },
 
                                 onOpenAlerts = {
-                                    // Paso 7: Alertas
+                                    navController.navigate(
+                                        Screen.Events.route
+                                    )
                                 },
 
                                 onOpenEvent = { eventId ->
-
                                     eventsViewModel
-                                        .seleccionarEventoPorId(
-                                            eventId
-                                        )
+                                        .seleccionarEventoPorId(eventId)
 
                                     navController.navigate(
                                         Screen.Events.route
@@ -163,6 +152,37 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
+                    }
+
+                    // LISTADO DE CÁMARAS
+                    composable("cameras") {
+
+                        CamerasScreen(
+                            onBack = {
+                                navController.popBackStack()
+                            },
+
+                            onCameraClick = { cameraId ->
+                                navController.navigate(
+                                    "camera/$cameraId"
+                                )
+                            }
+                        )
+                    }
+
+                    // DETALLE DE CÁMARA
+                    composable("camera/{cameraId}") { entry ->
+
+                        val cameraId =
+                            entry.arguments?.getString("cameraId")
+                                .orEmpty()
+
+                        CameraDetailScreen(
+                            cameraId = cameraId,
+                            onBack = {
+                                navController.popBackStack()
+                            }
+                        )
                     }
 
                     // EVENTOS
@@ -174,9 +194,7 @@ class MainActivity : ComponentActivity() {
 
                             onEventClick = { eventId ->
                                 eventsViewModel
-                                    .seleccionarEventoPorId(
-                                        eventId
-                                    )
+                                    .seleccionarEventoPorId(eventId)
                             },
 
                             onNavigateToProfile = {
@@ -186,9 +204,15 @@ class MainActivity : ComponentActivity() {
                             },
 
                             onNavigateToAdmin = {
-                                navController.navigate(
-                                    Screen.Admin.route
-                                )
+                                if (
+                                    currentUser?.rol ==
+                                    com.example.modoguardian.model.Role
+                                        .ADMINISTRADOR
+                                ) {
+                                    navController.navigate(
+                                        Screen.Admin.route
+                                    )
+                                }
                             }
                         )
                     }
@@ -209,47 +233,51 @@ class MainActivity : ComponentActivity() {
                             },
 
                             onLogout = {
-
                                 loginViewModel.cerrarSesion()
                                 authViewModel.cerrarSesion()
 
                                 navController.navigate(
                                     Screen.Login.route
                                 ) {
-                                    popUpTo(
-                                        navController.graph.id
-                                    ) {
+                                    popUpTo(navController.graph.id) {
                                         inclusive = false
                                     }
-
                                     launchSingleTop = true
                                 }
                             }
                         )
                     }
 
-                    // ADMINISTRACIÓN TEMPORAL
+                    // PANEL ADMIN TEMPORAL
                     composable(Screen.Admin.route) {
 
-                        EventsScreen(
-                            currentUser = currentUser,
-                            eventsState = eventsState,
+                        if (
+                            currentUser?.rol ==
+                            com.example.modoguardian.model.Role
+                                .ADMINISTRADOR
+                        ) {
+                            EventsScreen(
+                                currentUser = currentUser,
+                                eventsState = eventsState,
 
-                            onEventClick = { eventId ->
-                                eventsViewModel
-                                    .seleccionarEventoPorId(
-                                        eventId
+                                onEventClick = { eventId ->
+                                    eventsViewModel
+                                        .seleccionarEventoPorId(eventId)
+                                },
+
+                                onNavigateToProfile = {
+                                    navController.navigate(
+                                        Screen.Perfil.route
                                     )
-                            },
+                                },
 
-                            onNavigateToProfile = {
-                                navController.navigate(
-                                    Screen.Perfil.route
-                                )
-                            },
-
-                            onNavigateToAdmin = {}
-                        )
+                                onNavigateToAdmin = {}
+                            )
+                        } else {
+                            LaunchedEffect(Unit) {
+                                navController.popBackStack()
+                            }
+                        }
                     }
                 }
             }
