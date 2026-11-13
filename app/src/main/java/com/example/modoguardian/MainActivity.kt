@@ -40,17 +40,13 @@ import com.example.modoguardian.viewmodel.EventsViewModel
 import com.example.modoguardian.viewmodel.LoginViewModel
 
 class MainActivity : ComponentActivity() {
-
     private val authViewModel: AuthViewModel by viewModels()
     private val eventsViewModel: EventsViewModel by viewModels()
     private val loginViewModel: LoginViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Inicializar base de datos Room.
         GuardianRepository.inicializar(applicationContext)
-
         val preferences = getSharedPreferences(
             "insercode_profile_preferences",
             Context.MODE_PRIVATE
@@ -62,21 +58,15 @@ class MainActivity : ComponentActivity() {
         )
 
         setContent {
-
             val currentUser by
                 authViewModel.currentUser.collectAsState()
-
             val eventsState by
                 eventsViewModel.eventsState.collectAsState()
-
             val navController = rememberNavController()
-
             val backStackEntry by
                 navController.currentBackStackEntryAsState()
-
             val currentRoute =
                 backStackEntry?.destination?.route
-
             val homeRoutes = listOf(
                 Screen.HomeAdmin.route,
                 Screen.HomeSupervisor.route,
@@ -86,32 +76,22 @@ class MainActivity : ComponentActivity() {
             val homeRoute = when (currentUser?.rol) {
                 Role.ADMINISTRADOR ->
                     Screen.HomeAdmin.route
-
                 Role.SUPERVISOR ->
                     Screen.HomeSupervisor.route
-
                 Role.OPERADOR ->
                     Screen.HomeOperador.route
-
                 else ->
                     Screen.Login.route
             }
-
-            // =====================================
-            // PREFERENCIA GLOBAL DE TEMA
-            // =====================================
 
             var darkTheme by remember {
                 mutableStateOf(true)
             }
 
             DisposableEffect(currentUser?.id) {
-
                 val userId = currentUser?.id
-
                 if (userId != null) {
                     val key = "${userId}_dark_mode"
-
                     darkTheme = preferences.getBoolean(
                         key,
                         true
@@ -151,10 +131,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // =====================================
-            // RECUPERAR FOTO DEL PERFIL
-            // =====================================
-
             LaunchedEffect(currentUser?.id) {
                 val userId = currentUser?.id
 
@@ -173,10 +149,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-
-            // =====================================
-            // PROTECCIÓN BÁSICA DE NAVEGACIÓN
-            // =====================================
 
             LaunchedEffect(currentUser, currentRoute) {
 
@@ -197,19 +169,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // =====================================
-            // NAVEGACIÓN DESDE LOGIN
-            // =====================================
-
             LaunchedEffect(loginViewModel) {
 
                 loginViewModel.navigationEvent.collect {
                     event ->
-
                     when (event) {
-
                         is NavigationEvent.NavigateTo -> {
-
                             val loginSuccess =
                                 authViewModel.iniciarSesionDemo(
                                     event.route
@@ -238,10 +203,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // =====================================
-            // IDENTIDAD VISUAL
-            // =====================================
-
             ModoGuardianTheme(
                 darkTheme = darkTheme
             ) {
@@ -254,9 +215,6 @@ class MainActivity : ComponentActivity() {
                         currentRoute == Screen.Events.route ||
                         currentRoute == Screen.Perfil.route
                     )
-
-                // HomeScreen ya dispone de su propia
-                // barra inferior. Evitamos duplicarla.
 
                 fun navigateToTab(route: String) {
 
@@ -391,10 +349,7 @@ class MainActivity : ComponentActivity() {
                         )
                     ) {
 
-                        // =========================
-                        // LOGIN
-                        // =========================
-
+                        //Login
                         composable(
                             Screen.Login.route
                         ) {
@@ -403,14 +358,9 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // =========================
-                        // INICIO POR ROL
-                        // =========================
-
+                        // Inicio por rol
                         homeRoutes.forEach { route ->
-
                             composable(route) {
-
                                 HomeScreen(
                                     user = currentUser,
                                     eventsState = eventsState,
@@ -453,19 +403,14 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // =========================
-                        // CÁMARAS
-                        // =========================
-
+                        //Cámaras
                         composable("cameras") {
-
                             CamerasScreen(
                                 onBack = {
                                     navController.popBackStack()
                                 },
 
                                 onCameraClick = { cameraId ->
-
                                     navController.navigate(
                                         "camera/$cameraId"
                                     )
@@ -473,19 +418,14 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // =========================
-                        // DETALLE DE CÁMARA
-                        // =========================
-
+                        //Detalle de cámara
                         composable(
                             "camera/{cameraId}"
                         ) { entry ->
-
                             val cameraId =
                                 entry.arguments
                                     ?.getString("cameraId")
                                     .orEmpty()
-
                             CameraDetailScreen(
                                 cameraId = cameraId,
                                 onBack = {
@@ -494,22 +434,16 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // =========================
-                        // ALERTAS
-                        // =========================
-
+                        //Alertas
                         composable("alerts") {
-
                             AlertsScreen(
                                 eventsState = eventsState,
-
                                 onBack = {
                                     navController.popBackStack()
                                 },
 
                                 onStatusChange = {
                                     eventId, status ->
-
                                     eventsViewModel
                                         .cambiarEstadoEvento(
                                             eventId,
@@ -519,10 +453,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // =========================
-                        // HISTORIAL DE EVENTOS
-                        // =========================
-
+                        //Historial de eventos
                         composable(
                             Screen.Events.route
                         ) {
@@ -530,9 +461,7 @@ class MainActivity : ComponentActivity() {
                             EventsScreen(
                                 currentUser = currentUser,
                                 eventsState = eventsState,
-
                                 onEventClick = { eventId ->
-
                                     eventsViewModel
                                         .seleccionarEventoPorId(
                                             eventId
@@ -565,14 +494,10 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // =========================
-                        // DETALLE DE EVENTO
-                        // =========================
-
+                        //Detalle de evento
                         composable(
                             Screen.EventDetail.route
                         ) { entry ->
-
                             val eventId =
                                 entry.arguments
                                     ?.getString("eventId")
@@ -582,25 +507,21 @@ class MainActivity : ComponentActivity() {
                                 when (
                                     val state = eventsState
                                 ) {
-
                                     is UiState.Success ->
                                         state.data.find {
                                             it.id == eventId
                                         }
-
                                     else -> null
                                 }
 
                             EventDetailScreen(
                                 event = selectedEvent,
-
                                 onBack = {
                                     navController.popBackStack()
                                 },
 
                                 onStatusChange = {
                                     status, photoUri ->
-
                                     eventsViewModel
                                         .cambiarEstadoEvento(
                                             eventId,
@@ -611,17 +532,12 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // =========================
-                        // PERFIL
-                        // =========================
-
+                        //Perfil
                         composable(
                             Screen.Perfil.route
                         ) {
-
                             ProfileScreen(
                                 user = currentUser,
-
                                 onBack = {
                                     navController.popBackStack()
                                 },
@@ -631,12 +547,9 @@ class MainActivity : ComponentActivity() {
                                 },
 
                                 onPhotoUpdated = { uri ->
-
                                     val userId =
                                         currentUser?.id
-
                                     if (userId != null) {
-
                                         profilePhotos.edit()
                                             .putString(
                                                 "photo_$userId",
@@ -652,10 +565,8 @@ class MainActivity : ComponentActivity() {
                                 },
 
                                 onLogout = {
-
                                     loginViewModel.cerrarSesion()
                                     authViewModel.cerrarSesion()
-
                                     navController.navigate(
                                         Screen.Login.route
                                     ) {
@@ -671,25 +582,18 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // =========================
-                        // ADMINISTRACIÓN TEMPORAL
-                        // =========================
-
+                        //Administración temporal
                         composable(
                             Screen.Admin.route
                         ) {
-
                             if (
                                 currentUser?.rol ==
                                 Role.ADMINISTRADOR
                             ) {
-
                                 EventsScreen(
                                     currentUser = currentUser,
                                     eventsState = eventsState,
-
                                     onEventClick = { eventId ->
-
                                         eventsViewModel
                                             .seleccionarEventoPorId(
                                                 eventId
