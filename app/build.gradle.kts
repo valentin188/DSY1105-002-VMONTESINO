@@ -48,7 +48,6 @@ android {
 }
 
 dependencies {
-
     val composeBom = platform(
         "androidx.compose:compose-bom:2024.06.00"
     )
@@ -74,6 +73,10 @@ dependencies {
 
     implementation(
         "androidx.compose.ui:ui-tooling-preview"
+    )
+
+    implementation(
+        "androidx.compose.runtime:runtime-saveable"
     )
 
     implementation(
