@@ -11,10 +11,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.modoguardian.data.GuardianRepository
 import com.example.modoguardian.model.Role
 import com.example.modoguardian.navigation.NavigationEvent
 import com.example.modoguardian.navigation.Screen
 import com.example.modoguardian.ui.screens.*
+import com.example.modoguardian.ui.state.UiState
 import com.example.modoguardian.ui.theme.ModoGuardianTheme
 import com.example.modoguardian.viewmodel.AuthViewModel
 import com.example.modoguardian.viewmodel.EventsViewModel
@@ -28,6 +30,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Inicializar Room antes de acceder a los ViewModels
+        GuardianRepository.inicializar(applicationContext)
 
         setContent {
             ModoGuardianTheme {
@@ -46,15 +51,14 @@ class MainActivity : ComponentActivity() {
                 val rutaActual =
                     backStackEntry?.destination?.route
 
+                // Protección básica de navegación
                 LaunchedEffect(currentUser, rutaActual) {
                     if (
                         rutaActual != null &&
                         rutaActual != Screen.Login.route &&
                         currentUser == null
                     ) {
-                        navController.navigate(
-                            Screen.Login.route
-                        ) {
+                        navController.navigate(Screen.Login.route) {
                             popUpTo(navController.graph.id) {
                                 inclusive = false
                             }
@@ -63,9 +67,11 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                // Navegación desde el Login
                 LaunchedEffect(loginViewModel) {
                     loginViewModel.navigationEvent.collect { event ->
                         when (event) {
+
                             is NavigationEvent.NavigateTo -> {
                                 val sesionIniciada =
                                     authViewModel.iniciarSesionDemo(
@@ -73,9 +79,7 @@ class MainActivity : ComponentActivity() {
                                     )
 
                                 if (sesionIniciada) {
-                                    navController.navigate(
-                                        event.route
-                                    ) {
+                                    navController.navigate(event.route) {
                                         popUpTo(Screen.Login.route) {
                                             inclusive = true
                                         }
@@ -104,7 +108,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // INICIO
+                    // INICIO POR ROL
                     val homeRoutes = listOf(
                         Screen.HomeAdmin.route,
                         Screen.HomeSupervisor.route,
@@ -156,6 +160,7 @@ class MainActivity : ComponentActivity() {
                             onBack = {
                                 navController.popBackStack()
                             },
+
                             onCameraClick = { cameraId ->
                                 navController.navigate(
                                     "camera/$cameraId"
@@ -197,7 +202,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // HISTORIAL DE EVENTOS
+                    // HISTORIAL
                     composable(Screen.Events.route) {
                         EventsScreen(
                             currentUser = currentUser,
@@ -232,20 +237,22 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // DETALLE DE EVENTO
+                    // DETALLE DEL EVENTO
                     composable(Screen.EventDetail.route) { entry ->
                         val eventId =
                             entry.arguments
                                 ?.getString("eventId")
                                 .orEmpty()
 
-                        val selectedEvent = when (val state = eventsState) {
-                            is com.example.modoguardian.ui.state
-                                .UiState.Success -> {
+                        val selectedEvent = when (
+                            val state = eventsState
+                        ) {
+                            is UiState.Success -> {
                                 state.data.find {
                                     it.id == eventId
                                 }
                             }
+
                             else -> null
                         }
 
