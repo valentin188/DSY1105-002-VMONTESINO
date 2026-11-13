@@ -1,49 +1,55 @@
 package com.example.modoguardian.ui.screens
 
 import android.net.Uri
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.WarningAmber
+
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+
 import com.example.modoguardian.model.EstadoEvento
 import com.example.modoguardian.model.Event
+import com.example.modoguardian.model.MotivoCierre
 import com.example.modoguardian.model.Prioridad
+
 import com.example.modoguardian.ui.components.ImagenInteligente
 import com.example.modoguardian.ui.utils.EvidenceStorage
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-private val eventBg = Color(0xFF0B1426)
-private val eventCard = Color(0xFF192740)
-private val eventBlue = Color(0xFF2864E8)
-private val eventRed = Color(0xFFF04452)
-private val eventGreen = Color(0xFF20C997)
-private val eventGray = Color(0xFF9BAAC3)
-private val eventYellow = Color(0xFFFFC857)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EventDetailScreen(
     event: Event?,
     onBack: () -> Unit,
-    onStatusChange: (EstadoEvento, String?) -> Unit
+    onStatusChange: (EstadoEvento, String?) -> Unit,
+    onCloseWithReason:
+        ((MotivoCierre, String?) -> Unit)? = null
 ) {
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val colors = MaterialTheme.colorScheme
 
     var selectedPhoto by remember(event?.id) {
         mutableStateOf<Uri?>(null)
@@ -53,7 +59,7 @@ fun EventDetailScreen(
         mutableStateOf<EstadoEvento?>(null)
     }
 
-    var saving by remember(event?.id) {
+    var savingPhoto by remember(event?.id) {
         mutableStateOf(false)
     }
 
@@ -61,18 +67,19 @@ fun EventDetailScreen(
         mutableStateOf<String?>(null)
     }
 
-    val savedPhoto = remember(
+    val storedPhoto = remember(
         event?.id,
         event?.evidenciaFotoUri
     ) {
         event?.evidenciaFotoUri?.let(Uri::parse)
     }
 
-    val previewPhoto = selectedPhoto ?: savedPhoto
+    val previewPhoto = selectedPhoto ?: storedPhoto
 
     val photoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
+
         if (uri != null) {
             selectedPhoto = uri
             errorMessage = null
@@ -80,35 +87,50 @@ fun EventDetailScreen(
     }
 
     Scaffold(
-        containerColor = eventBg,
+        containerColor = colors.background,
+
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        "Detalle del evento",
-                        color = Color.White
-                    )
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = onBack,
-                        enabled = !saving
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver",
-                            tint = Color.White
+                    Column {
+                        Text(
+                            "Detalle del evento",
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Text(
+                            "INSERCODE · Gestión de incidentes",
+                            color = colors.onSurfaceVariant,
+                            style =
+                                MaterialTheme.typography.labelSmall
                         )
                     }
                 },
+
+                navigationIcon = {
+                    IconButton(
+                        onClick = onBack,
+                        enabled = !savingPhoto
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver"
+                        )
+                    }
+                },
+
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = eventBg
+                    containerColor = colors.background,
+                    titleContentColor = colors.onBackground,
+                    navigationIconContentColor =
+                        colors.onBackground
                 )
             )
         }
     ) { padding ->
 
         if (event == null) {
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -117,18 +139,21 @@ fun EventDetailScreen(
             ) {
                 Text(
                     "Evento no encontrado",
-                    color = Color.White
+                    color = colors.onBackground
                 )
             }
 
         } else {
 
             val priorityColor = when (event.prioridad) {
-                Prioridad.CRITICA -> eventRed
-                Prioridad.ALTA -> eventYellow
-                Prioridad.MEDIA -> eventBlue
-                Prioridad.BAJA -> eventGreen
+                Prioridad.CRITICA -> colors.error
+                Prioridad.ALTA -> colors.tertiary
+                Prioridad.MEDIA -> colors.primary
+                Prioridad.BAJA -> colors.secondary
             }
+
+            val resolved =
+                event.estado == EstadoEvento.RESUELTO
 
             Column(
                 modifier = Modifier
@@ -136,32 +161,33 @@ fun EventDetailScreen(
                     .padding(padding)
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
+
                 verticalArrangement =
                     Arrangement.spacedBy(18.dp)
             ) {
 
-                // INFORMACIÓN DEL EVENTO
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = eventCard
+                        containerColor = colors.surfaceContainer
                     ),
                     shape = RoundedCornerShape(20.dp)
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),
                         verticalArrangement =
-                            Arrangement.spacedBy(14.dp)
+                            Arrangement.spacedBy(13.dp)
                     ) {
+
                         Text(
                             "INSERCODE · INCIDENTE",
-                            color = eventGray,
+                            color = colors.onSurfaceVariant,
                             style =
                                 MaterialTheme.typography.labelMedium
                         )
 
                         Text(
                             event.titulo,
-                            color = Color.White,
+                            color = colors.onSurface,
                             style =
                                 MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
@@ -173,34 +199,102 @@ fun EventDetailScreen(
                             fontWeight = FontWeight.Bold
                         )
 
-                        HorizontalDivider(color = eventBg)
+                        HorizontalDivider()
 
-                        EventDetailField(
+                        DetailInformation(
                             "Código del evento",
                             event.id
                         )
 
-                        EventDetailField(
+                        DetailInformation(
                             "Ubicación",
                             event.ubicacion
                         )
 
-                        EventDetailField(
+                        DetailInformation(
                             "Fecha y hora",
                             event.fechaHora
                         )
 
-                        EventDetailField(
+                        DetailInformation(
                             "Estado",
                             event.estado.name.replace("_", " ")
                         )
                     }
                 }
 
-                // DESCRIPCIÓN
+                if (resolved) {
+
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor =
+                                colors.secondaryContainer
+                        ),
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(18.dp),
+                            verticalArrangement =
+                                Arrangement.spacedBy(10.dp)
+                        ) {
+
+                            Row(
+                                verticalAlignment =
+                                    Alignment.CenterVertically,
+                                horizontalArrangement =
+                                    Arrangement.spacedBy(10.dp)
+                            ) {
+
+                                Icon(
+                                    Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = colors.onSecondaryContainer
+                                )
+
+                                Text(
+                                    "EVENTO RESUELTO",
+                                    color = colors.onSecondaryContainer,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Text(
+                                when (event.motivoCierre) {
+
+                                    MotivoCierre.FALSA_ALARMA ->
+                                        "Motivo: falsa alarma"
+
+                                    MotivoCierre.INCIDENTE_SOLUCIONADO ->
+                                        "Motivo: incidente solucionado"
+
+                                    null ->
+                                        "Motivo de cierre no registrado"
+                                },
+
+                                color = colors.onSecondaryContainer,
+                                style =
+                                    MaterialTheme.typography.bodyMedium
+                            )
+
+                            if (event.motivoCierre == null) {
+                                Text(
+                                    "Este evento pudo haberse cerrado " +
+                                        "antes de implementar la " +
+                                        "clasificación de motivos.",
+                                    color = colors.onSecondaryContainer,
+                                    style =
+                                        MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                    }
+                }
+
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = eventCard
+                        containerColor = colors.surfaceContainer
                     ),
                     shape = RoundedCornerShape(18.dp)
                 ) {
@@ -209,26 +303,26 @@ fun EventDetailScreen(
                         verticalArrangement =
                             Arrangement.spacedBy(12.dp)
                     ) {
+
                         Text(
                             "DESCRIPCIÓN DEL INCIDENTE",
-                            color = eventGray,
+                            color = colors.onSurfaceVariant,
                             style =
                                 MaterialTheme.typography.labelMedium
                         )
 
                         Text(
                             event.descripcion,
-                            color = Color.White,
+                            color = colors.onSurface,
                             style =
                                 MaterialTheme.typography.bodyLarge
                         )
                     }
                 }
 
-                // EVIDENCIA FOTOGRÁFICA
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = eventCard
+                        containerColor = colors.surfaceContainer
                     ),
                     shape = RoundedCornerShape(18.dp)
                 ) {
@@ -236,15 +330,17 @@ fun EventDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(20.dp),
+
                         horizontalAlignment =
                             Alignment.CenterHorizontally,
+
                         verticalArrangement =
                             Arrangement.spacedBy(14.dp)
                     ) {
 
                         Text(
                             "EVIDENCIA FOTOGRÁFICA",
-                            color = eventGray,
+                            color = colors.onSurfaceVariant,
                             style =
                                 MaterialTheme.typography.labelMedium
                         )
@@ -255,70 +351,76 @@ fun EventDetailScreen(
 
                         Text(
                             when {
+
                                 selectedPhoto != null ->
                                     "Nueva fotografía seleccionada"
 
-                                savedPhoto != null ->
-                                    "Evidencia guardada en el evento"
+                                storedPhoto != null ->
+                                    "Evidencia registrada"
 
                                 else ->
-                                    "No hay fotografía adjunta"
+                                    "Sin fotografía adjunta"
                             },
-                            color = if (previewPhoto != null)
-                                eventGreen else eventGray,
+
+                            color = colors.onSurfaceVariant,
                             style =
                                 MaterialTheme.typography.bodySmall
                         )
 
-                        OutlinedButton(
-                            onClick = {
-                                photoPicker.launch("image/*")
-                            },
-                            enabled = !saving &&
-                                event.estado != EstadoEvento.RESUELTO,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                Icons.Default.AddAPhoto,
-                                contentDescription = null
-                            )
+                        if (!resolved) {
 
-                            Spacer(Modifier.width(8.dp))
-
-                            Text(
-                                if (previewPhoto == null)
-                                    "Seleccionar fotografía"
-                                else
-                                    "Cambiar fotografía"
-                            )
-                        }
-
-                        if (selectedPhoto != null) {
-                            Text(
-                                "La nueva fotografía se guardará " +
-                                    "al confirmar una acción del evento.",
-                                color = eventGray,
-                                style =
-                                    MaterialTheme.typography.bodySmall
-                            )
-                        }
-
-                        if (selectedPhoto != null && !saving) {
-                            TextButton(
+                            OutlinedButton(
                                 onClick = {
-                                    selectedPhoto = null
-                                }
+                                    photoPicker.launch("image/*")
+                                },
+
+                                enabled = !savingPhoto,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("Cancelar selección")
+
+                                Icon(
+                                    Icons.Default.AddAPhoto,
+                                    contentDescription = null
+                                )
+
+                                Spacer(Modifier.width(8.dp))
+
+                                Text(
+                                    if (previewPhoto == null)
+                                        "Seleccionar fotografía"
+                                    else
+                                        "Cambiar fotografía"
+                                )
+                            }
+
+                            if (selectedPhoto != null) {
+
+                                Text(
+                                    "La fotografía se copiará al " +
+                                        "almacenamiento interno cuando " +
+                                        "confirmes una acción.",
+                                    color = colors.onSurfaceVariant,
+                                    style =
+                                        MaterialTheme.typography.bodySmall
+                                )
+
+                                TextButton(
+                                    onClick = {
+                                        selectedPhoto = null
+                                    },
+
+                                    enabled = !savingPhoto
+                                ) {
+                                    Text("Cancelar selección")
+                                }
                             }
                         }
                     }
                 }
 
-                // ACCIONES
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = eventCard
+                        containerColor = colors.surfaceContainer
                     ),
                     shape = RoundedCornerShape(18.dp)
                 ) {
@@ -330,78 +432,85 @@ fun EventDetailScreen(
 
                         Text(
                             "ACCIONES DEL EVENTO",
-                            color = eventGray,
+                            color = colors.onSurfaceVariant,
                             style =
                                 MaterialTheme.typography.labelMedium
                         )
 
-                        if (
-                            event.estado == EstadoEvento.PENDIENTE
-                        ) {
+                        if (event.estado == EstadoEvento.PENDIENTE) {
+
                             Button(
                                 onClick = {
                                     pendingStatus =
                                         EstadoEvento.EN_PROCESO
                                 },
-                                enabled = !saving,
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = eventBlue
-                                )
+
+                                enabled = !savingPhoto,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text("Confirmar alerta")
                             }
                         }
 
-                        if (
-                            event.estado != EstadoEvento.RESUELTO
-                        ) {
+                        if (!resolved) {
+
                             Button(
                                 onClick = {
                                     pendingStatus =
                                         EstadoEvento.RESUELTO
                                 },
-                                enabled = !saving,
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = eventGreen
-                                )
+
+                                enabled =
+                                    !savingPhoto &&
+                                        onCloseWithReason != null,
+
+                                modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text("Resolver incidente")
                             }
+
+                            if (onCloseWithReason == null) {
+                                Text(
+                                    "La resolución con motivo de " +
+                                        "cierre se habilitará al " +
+                                        "conectar MainActivity.",
+                                    color = colors.onSurfaceVariant,
+                                    style =
+                                        MaterialTheme.typography.bodySmall
+                                )
+                            }
+
                         } else {
+
                             Text(
-                                "Este incidente está resuelto.",
-                                color = eventGreen,
+                                "Este evento ya está cerrado.",
+                                color = colors.secondary,
                                 fontWeight = FontWeight.Bold
                             )
                         }
 
-                        if (saving) {
+                        if (savingPhoto) {
                             LinearProgressIndicator(
-                                modifier = Modifier.fillMaxWidth(),
-                                color = eventBlue
+                                modifier = Modifier.fillMaxWidth()
                             )
 
                             Text(
-                                "Guardando evidencia...",
-                                color = eventGray
+                                "Preparando evidencia...",
+                                color = colors.onSurfaceVariant
                             )
                         }
 
                         errorMessage?.let { message ->
                             Text(
                                 message,
-                                color = eventRed,
-                                style =
-                                    MaterialTheme.typography.bodySmall
+                                color = colors.error
                             )
                         }
 
                         Text(
-                            "Los cambios se almacenan " +
+                            "La evidencia se guarda " +
                                 "localmente en el dispositivo.",
-                            color = eventGray,
+                            color = colors.onSurfaceVariant,
                             style =
                                 MaterialTheme.typography.bodySmall
                         )
@@ -411,7 +520,6 @@ fun EventDetailScreen(
         }
     }
 
-    // CONFIRMACIÓN
     val statusToConfirm = pendingStatus
     val currentEvent = event
 
@@ -419,93 +527,127 @@ fun EventDetailScreen(
 
         AlertDialog(
             onDismissRequest = {
-                if (!saving) {
+                if (!savingPhoto) {
                     pendingStatus = null
                 }
             },
+
             title = {
                 Text("Confirmar actualización")
             },
+
             text = {
                 Column(
                     verticalArrangement =
                         Arrangement.spacedBy(10.dp)
                 ) {
+
                     Text(
-                        "¿Deseas cambiar el estado " +
-                            "del evento ${currentEvent.id} a " +
-                            statusToConfirm.name
-                                .replace("_", " ") +
-                            "?"
+                        if (statusToConfirm == EstadoEvento.RESUELTO) {
+
+                            "¿Deseas resolver el evento " +
+                                "${currentEvent.id} como " +
+                                "INCIDENTE SOLUCIONADO?"
+
+                        } else {
+
+                            "¿Deseas confirmar la alerta " +
+                                "${currentEvent.id} y " +
+                                "marcarla como EN PROCESO?"
+                        }
                     )
 
                     if (selectedPhoto != null) {
                         Text(
-                            "También se guardará la fotografía " +
+                            "También se copiará la fotografía " +
                                 "seleccionada como evidencia.",
-                            color =
-                                MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
             },
+
             confirmButton = {
                 TextButton(
-                    enabled = !saving,
+                    enabled = !savingPhoto,
+
                     onClick = {
+
                         scope.launch {
-                            saving = true
+
+                            savingPhoto = true
                             errorMessage = null
 
                             try {
+
                                 val photoToSave = selectedPhoto
 
                                 val storedUri =
                                     if (photoToSave != null) {
+
                                         withContext(Dispatchers.IO) {
+
                                             EvidenceStorage.save(
                                                 context,
                                                 photoToSave
                                             )
                                         }
+
                                     } else {
                                         null
                                     }
 
-                                onStatusChange(
-                                    statusToConfirm,
-                                    storedUri
-                                )
+                                if (
+                                    statusToConfirm ==
+                                    EstadoEvento.RESUELTO
+                                ) {
+
+                                    onCloseWithReason?.invoke(
+                                        MotivoCierre.INCIDENTE_SOLUCIONADO,
+                                        storedUri
+                                    )
+
+                                } else {
+
+                                    onStatusChange(
+                                        statusToConfirm,
+                                        storedUri
+                                    )
+                                }
 
                                 selectedPhoto = null
                                 pendingStatus = null
 
                             } catch (error: Exception) {
+
                                 errorMessage =
-                                    "No se pudo guardar la " +
+                                    "No se pudo preparar la " +
                                         "evidencia: " +
                                         (error.message
                                             ?: "Error desconocido")
+
                             } finally {
-                                saving = false
+
+                                savingPhoto = false
                             }
                         }
                     }
                 ) {
                     Text(
-                        if (saving)
-                            "Guardando..."
+                        if (savingPhoto)
+                            "Preparando..."
                         else
                             "Confirmar"
                     )
                 }
             },
+
             dismissButton = {
                 TextButton(
-                    enabled = !saving,
                     onClick = {
                         pendingStatus = null
-                    }
+                    },
+                    enabled = !savingPhoto
                 ) {
                     Text("Cancelar")
                 }
@@ -515,24 +657,25 @@ fun EventDetailScreen(
 }
 
 @Composable
-private fun EventDetailField(
+private fun DetailInformation(
     label: String,
     value: String
 ) {
+    val colors = MaterialTheme.colorScheme
+
     Column(
-        verticalArrangement =
-            Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
+
         Text(
             label,
-            color = eventGray,
-            style =
-                MaterialTheme.typography.labelSmall
+            color = colors.onSurfaceVariant,
+            style = MaterialTheme.typography.labelSmall
         )
 
         Text(
             value,
-            color = Color.White,
+            color = colors.onSurface,
             fontWeight = FontWeight.Medium
         )
     }
