@@ -4,15 +4,18 @@ on:
   push:
     branches:
       - main
+
   pull_request:
     branches:
       - main
+
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+
   build:
     name: Compilar INSERCODE
     runs-on: ubuntu-latest
@@ -33,7 +36,8 @@ jobs:
 
       - name: Instalar Android SDK 35
         run: |
-          sdkmanager "platforms;android-35" \
+          sdkmanager \
+            "platforms;android-35" \
             "build-tools;35.0.0"
 
       - name: Configurar Gradle
@@ -42,7 +46,60 @@ jobs:
       - name: Autorizar Gradle Wrapper
         run: chmod +x ./gradlew
 
-      - name: Compilar APK Debug
+      - name: Preparar firma permanente
+        if: github.event_name != 'pull_request'
+        shell: bash
+
+        env:
+          KEYSTORE_BASE64: ${{ secrets.INSERCODE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.INSERCODE_KEYSTORE_PASSWORD }}
+
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$KEYSTORE_BASE64" ]]; then
+            echo "::error::Falta INSERCODE_KEYSTORE_BASE64"
+            exit 1
+          fi
+
+          if [[ -z "$KEYSTORE_PASSWORD" ]]; then
+            echo "::error::Falta INSERCODE_KEYSTORE_PASSWORD"
+            exit 1
+          fi
+
+          printf '%s' "$KEYSTORE_BASE64" \
+            | base64 --decode \
+            > "$RUNNER_TEMP/insercode-signing.p12"
+
+          if [[ ! -s "$RUNNER_TEMP/insercode-signing.p12" ]]; then
+            echo "::error::No se pudo reconstruir el archivo de firma"
+            exit 1
+          fi
+
+          keytool -list \
+            -storetype PKCS12 \
+            -keystore "$RUNNER_TEMP/insercode-signing.p12" \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -alias insercode \
+            > /dev/null
+
+          echo "Firma permanente validada correctamente"
+
+      - name: Compilar APK Debug firmado
+        if: github.event_name != 'pull_request'
+
+        env:
+          INSERCODE_KEYSTORE_PATH: ${{ runner.temp }}/insercode-signing.p12
+          INSERCODE_KEYSTORE_PASSWORD: ${{ secrets.INSERCODE_KEYSTORE_PASSWORD }}
+
+        run: |
+          ./gradlew :app:assembleDebug \
+            --no-daemon \
+            --stacktrace
+
+      - name: Compilar APK de Pull Request
+        if: github.event_name == 'pull_request'
+
         run: |
           ./gradlew :app:assembleDebug \
             --no-daemon \
@@ -50,12 +107,24 @@ jobs:
 
       - name: Comprobar APK
         if: success()
+
         run: |
           test -s app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Publicar APK de prueba
-        if: success()
+      - name: Verificar firma Android
+        if: github.event_name != 'pull_request'
+
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" \
+            verify \
+            --verbose \
+            app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publicar APK firmado
+        if: success() && github.event_name != 'pull_request'
+
         uses: actions/upload-artifact@v4
+
         with:
           name: INSERCODE-Android-Debug
           path: app/build/outputs/apk/debug/app-debug.apk
