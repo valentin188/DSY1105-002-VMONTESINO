@@ -1,12 +1,18 @@
 package com.example.modoguardian.ui.screens
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
@@ -15,18 +21,24 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.modoguardian.model.*
 import com.example.modoguardian.ui.state.UiState
+import com.example.modoguardian.ui.utils.TurnReportPdf
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
-private val historyBg = Color(0xFF0B1426)
-private val historyCard = Color(0xFF1A2943)
-private val historyBlue = Color(0xFF2864E8)
-private val historyGray = Color(0xFF9BAAC3)
-private val historyRed = Color(0xFFFF5252)
-private val historyGreen = Color(0xFF20C997)
-private val historyYellow = Color(0xFFFFC857)
+private val bg = Color(0xFF0B1426)
+private val cardBg = Color(0xFF1A2943)
+private val blue = Color(0xFF2864E8)
+private val gray = Color(0xFF9BAAC3)
+private val red = Color(0xFFFF5252)
+private val green = Color(0xFF20C997)
+private val yellow = Color(0xFFFFC857)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,12 +49,22 @@ fun EventsScreen(
     onNavigateToProfile: () -> Unit,
     onNavigateToAdmin: () -> Unit
 ) {
-    var search by remember { mutableStateOf("") }
+    val context = LocalContext.current
+
+    var search by remember {
+        mutableStateOf("")
+    }
+
     var priorityFilter by remember {
         mutableStateOf("Todos")
     }
+
     var statusFilter by remember {
         mutableStateOf("Todos")
+    }
+
+    var exporting by remember {
+        mutableStateOf(false)
     }
 
     val events = when (eventsState) {
@@ -51,9 +73,13 @@ fun EventsScreen(
     }
 
     val filteredEvents = remember(
-        events, search, priorityFilter, statusFilter
+        events,
+        search,
+        priorityFilter,
+        statusFilter
     ) {
         events.filter { event ->
+
             val matchesSearch =
                 event.titulo.contains(search, true) ||
                 event.ubicacion.contains(search, true) ||
@@ -71,20 +97,69 @@ fun EventsScreen(
             matchesSearch &&
                 matchesPriority &&
                 matchesStatus
-        }.sortedByDescending { it.fechaHora }
+
+        }.sortedByDescending {
+            it.fechaHora
+        }
+    }
+
+    val latestUser by rememberUpdatedState(currentUser)
+    val latestEvents by rememberUpdatedState(filteredEvents)
+
+    val pdfLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(
+            "application/pdf"
+        )
+    ) { uri ->
+
+        if (uri != null) {
+            exporting = true
+
+            try {
+                TurnReportPdf.generate(
+                    context = context,
+                    destination = uri,
+                    user = latestUser,
+                    events = latestEvents
+                )
+
+                Toast.makeText(
+                    context,
+                    "Reporte PDF guardado correctamente",
+                    Toast.LENGTH_LONG
+                ).show()
+
+            } catch (error: Exception) {
+
+                Toast.makeText(
+                    context,
+                    "Error al generar PDF: ${error.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+
+            } finally {
+                exporting = false
+            }
+        }
     }
 
     val total = events.size
+
     val critical = events.count {
         it.prioridad == Prioridad.CRITICA &&
-        it.estado != EstadoEvento.RESUELTO
+            it.estado != EstadoEvento.RESUELTO
     }
+
     val pending = events.count {
         it.estado == EstadoEvento.PENDIENTE
     }
 
+    val resolved = events.count {
+        it.estado == EstadoEvento.RESUELTO
+    }
+
     Scaffold(
-        containerColor = historyBg,
+        containerColor = bg,
         topBar = {
             TopAppBar(
                 title = {
@@ -93,15 +168,16 @@ fun EventsScreen(
                             "Historial",
                             fontWeight = FontWeight.Bold
                         )
+
                         Text(
                             "INSERCODE · Registro de seguridad",
-                            color = historyGray,
-                            style =
-                                MaterialTheme.typography.labelSmall
+                            color = gray,
+                            style = MaterialTheme.typography.labelSmall
                         )
                     }
                 },
                 actions = {
+
                     if (
                         currentUser?.rol ==
                         Role.ADMINISTRADOR
@@ -111,8 +187,7 @@ fun EventsScreen(
                         ) {
                             Icon(
                                 Icons.Default.Shield,
-                                contentDescription =
-                                    "Administración",
+                                contentDescription = "Administración",
                                 tint = Color.White
                             )
                         }
@@ -128,11 +203,10 @@ fun EventsScreen(
                         )
                     }
                 },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = historyBg,
-                        titleContentColor = Color.White
-                    )
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = bg,
+                    titleContentColor = Color.White
+                )
             )
         }
     ) { padding ->
@@ -142,69 +216,142 @@ fun EventsScreen(
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement =
-                Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 
+            // RESUMEN GENERAL
             item {
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = historyCard
+                        containerColor = cardBg
                     ),
                     shape = RoundedCornerShape(20.dp)
                 ) {
                     Column(
                         modifier = Modifier.padding(18.dp),
-                        verticalArrangement =
-                            Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
+
                         Text(
                             "RESUMEN DE EVENTOS",
-                            color = historyGray,
-                            style =
-                                MaterialTheme.typography.labelSmall
+                            color = gray,
+                            style = MaterialTheme.typography.labelMedium
                         )
 
                         Row(
-                            horizontalArrangement =
-                                Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            HistoryMetric(
-                                "REGISTRADOS",
-                                "$total",
-                                historyBlue,
-                                Modifier.weight(1f)
+
+                            EventMetric(
+                                title = "TOTAL",
+                                value = "$total",
+                                color = blue,
+                                modifier = Modifier.weight(1f)
                             )
 
-                            HistoryMetric(
-                                "CRÍTICAS",
-                                "$critical",
-                                historyRed,
-                                Modifier.weight(1f)
+                            EventMetric(
+                                title = "CRÍTICAS",
+                                value = "$critical",
+                                color = red,
+                                modifier = Modifier.weight(1f)
                             )
 
-                            HistoryMetric(
-                                "PENDIENTES",
-                                "$pending",
-                                historyYellow,
-                                Modifier.weight(1f)
+                            EventMetric(
+                                title = "PENDIENTES",
+                                value = "$pending",
+                                color = yellow,
+                                modifier = Modifier.weight(1f)
                             )
                         }
 
                         Text(
-                            "Información del historial disponible",
-                            color = historyGray,
-                            style =
-                                MaterialTheme.typography.bodySmall
+                            "$resolved eventos resueltos",
+                            color = green
                         )
                     }
                 }
             }
 
+            // EXPORTACIÓN PDF
+            item {
+                Card(
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = cardBg
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+
+                        Text(
+                            "REPORTE DE TURNO",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Text(
+                            "Exporta los eventos que coincidan " +
+                                "con los filtros seleccionados.",
+                            color = gray,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+
+                        Text(
+                            "${filteredEvents.size} eventos para exportar",
+                            color = blue,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Button(
+                            onClick = {
+
+                                val timestamp =
+                                    SimpleDateFormat(
+                                        "yyyyMMdd_HHmm",
+                                        Locale.US
+                                    ).format(Date())
+
+                                pdfLauncher.launch(
+                                    "INSERCODE_Reporte_$timestamp.pdf"
+                                )
+                            },
+                            enabled =
+                                eventsState is UiState.Success &&
+                                !exporting,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = blue
+                            )
+                        ) {
+                            Icon(
+                                Icons.Default.Download,
+                                contentDescription = null
+                            )
+
+                            Spacer(Modifier.width(10.dp))
+
+                            Text(
+                                if (exporting)
+                                    "Generando reporte..."
+                                else
+                                    "Exportar reporte PDF"
+                            )
+                        }
+                    }
+                }
+            }
+
+            // BUSCADOR
             item {
                 OutlinedTextField(
                     value = search,
-                    onValueChange = { search = it },
+                    onValueChange = {
+                        search = it
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
                         Text(
@@ -222,36 +369,43 @@ fun EventsScreen(
                 )
             }
 
+            // PRIORIDAD
             item {
                 Text(
                     "Filtrar por prioridad",
-                    color = historyGray,
-                    style =
-                        MaterialTheme.typography.labelMedium
+                    color = gray
                 )
 
                 Spacer(Modifier.height(8.dp))
 
                 Row(
-                    horizontalArrangement =
-                        Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.horizontalScroll(
+                        rememberScrollState()
+                    ),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     listOf(
-                        "Todos", "CRITICA", "ALTA"
+                        "Todos",
+                        "CRITICA",
+                        "ALTA",
+                        "MEDIA",
+                        "BAJA"
                     ).forEach { option ->
+
                         FilterChip(
-                            selected =
-                                priorityFilter == option,
+                            selected = priorityFilter == option,
                             onClick = {
                                 priorityFilter = option
                             },
                             label = {
                                 Text(
-                                    if (option == "CRITICA")
-                                        "Críticas"
-                                    else if (option == "ALTA")
-                                        "Altas"
-                                    else "Todos"
+                                    when (option) {
+                                        "CRITICA" -> "Crítica"
+                                        "ALTA" -> "Alta"
+                                        "MEDIA" -> "Media"
+                                        "BAJA" -> "Baja"
+                                        else -> "Todos"
+                                    }
                                 )
                             }
                         )
@@ -259,19 +413,20 @@ fun EventsScreen(
                 }
             }
 
+            // ESTADO
             item {
                 Text(
                     "Filtrar por estado",
-                    color = historyGray,
-                    style =
-                        MaterialTheme.typography.labelMedium
+                    color = gray
                 )
 
                 Spacer(Modifier.height(8.dp))
 
                 Row(
-                    horizontalArrangement =
-                        Arrangement.spacedBy(6.dp)
+                    modifier = Modifier.horizontalScroll(
+                        rememberScrollState()
+                    ),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     listOf(
                         "Todos",
@@ -279,22 +434,20 @@ fun EventsScreen(
                         "EN_PROCESO",
                         "RESUELTO"
                     ).forEach { option ->
+
                         FilterChip(
-                            selected =
-                                statusFilter == option,
+                            selected = statusFilter == option,
                             onClick = {
                                 statusFilter = option
                             },
                             label = {
                                 Text(
                                     when (option) {
-                                        "PENDIENTE" -> "Pend."
-                                        "EN_PROCESO" -> "Proceso"
+                                        "PENDIENTE" -> "Pendiente"
+                                        "EN_PROCESO" -> "En proceso"
                                         "RESUELTO" -> "Resuelto"
                                         else -> "Todos"
-                                    },
-                                    style = MaterialTheme
-                                        .typography.labelSmall
+                                    }
                                 )
                             }
                         )
@@ -302,36 +455,38 @@ fun EventsScreen(
                 }
             }
 
+            // RESULTADOS
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement =
-                        Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         "Eventos registrados",
                         color = Color.White,
                         fontWeight = FontWeight.Bold
                     )
+
                     Text(
                         "${filteredEvents.size} resultados",
-                        color = historyGray
+                        color = gray
                     )
                 }
             }
 
             when (eventsState) {
+
                 UiState.Loading -> {
                     item {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(30.dp),
-                            contentAlignment =
-                                Alignment.Center
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator(
-                                color = historyBlue
+                                color = blue
                             )
                         }
                     }
@@ -340,8 +495,9 @@ fun EventsScreen(
                 is UiState.Error -> {
                     item {
                         Text(
-                            "Error: ${eventsState.message}",
-                            color = historyRed
+                            "No se pudieron cargar los eventos: " +
+                                eventsState.message,
+                            color = red
                         )
                     }
                 }
@@ -349,23 +505,22 @@ fun EventsScreen(
                 is UiState.Success -> {
 
                     if (filteredEvents.isEmpty()) {
+
                         item {
                             Card(
-                                colors =
-                                    CardDefaults.cardColors(
-                                        containerColor =
-                                            historyCard
-                                    )
+                                colors = CardDefaults.cardColors(
+                                    containerColor = cardBg
+                                )
                             ) {
                                 Text(
-                                    "No hay eventos que " +
-                                        "coincidan con los filtros.",
-                                    modifier =
-                                        Modifier.padding(20.dp),
-                                    color = historyGray
+                                    "No hay eventos que coincidan " +
+                                        "con los filtros seleccionados.",
+                                    modifier = Modifier.padding(24.dp),
+                                    color = gray
                                 )
                             }
                         }
+
                     } else {
 
                         val groups = filteredEvents.groupBy {
@@ -377,9 +532,8 @@ fun EventsScreen(
                             item(key = "date-$date") {
                                 Text(
                                     date,
-                                    color = historyGray,
-                                    style = MaterialTheme
-                                        .typography.titleSmall
+                                    color = gray,
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
 
@@ -388,17 +542,14 @@ fun EventsScreen(
                                 key = { it.id }
                             ) { event ->
 
-                                val priorityColor =
-                                    when (event.prioridad) {
-                                        Prioridad.CRITICA ->
-                                            historyRed
-                                        Prioridad.ALTA ->
-                                            historyYellow
-                                        Prioridad.MEDIA ->
-                                            historyBlue
-                                        Prioridad.BAJA ->
-                                            historyGreen
-                                    }
+                                val priorityColor = when (
+                                    event.prioridad
+                                ) {
+                                    Prioridad.CRITICA -> red
+                                    Prioridad.ALTA -> yellow
+                                    Prioridad.MEDIA -> blue
+                                    Prioridad.BAJA -> green
+                                }
 
                                 Card(
                                     modifier = Modifier
@@ -406,77 +557,75 @@ fun EventsScreen(
                                         .clickable {
                                             onEventClick(event.id)
                                         },
-                                    shape =
-                                        RoundedCornerShape(16.dp),
-                                    colors =
-                                        CardDefaults.cardColors(
-                                            containerColor =
-                                                historyCard
-                                        )
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = cardBg
+                                    ),
+                                    shape = RoundedCornerShape(16.dp)
                                 ) {
+
                                     Column(
-                                        modifier =
-                                            Modifier.padding(16.dp),
+                                        modifier = Modifier.padding(16.dp),
                                         verticalArrangement =
                                             Arrangement.spacedBy(8.dp)
                                     ) {
 
                                         Row(
-                                            modifier =
-                                                Modifier.fillMaxWidth(),
+                                            modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement =
                                                 Arrangement.SpaceBetween
                                         ) {
+
                                             Text(
                                                 event.prioridad.name,
                                                 color = priorityColor,
+                                                fontWeight = FontWeight.Bold,
                                                 style =
-                                                    MaterialTheme
-                                                        .typography
-                                                        .labelSmall
+                                                    MaterialTheme.typography.labelSmall
                                             )
 
                                             Text(
-                                                event.estado.name
-                                                    .replace("_", " "),
+                                                event.estado.name.replace(
+                                                    "_",
+                                                    " "
+                                                ),
                                                 color = if (
                                                     event.estado ==
                                                     EstadoEvento.RESUELTO
-                                                ) historyGreen
-                                                else historyGray,
+                                                ) green else gray,
                                                 style =
-                                                    MaterialTheme
-                                                        .typography
-                                                        .labelSmall
+                                                    MaterialTheme.typography.labelSmall
                                             )
                                         }
 
                                         Text(
                                             event.titulo,
                                             color = Color.White,
-                                            fontWeight =
-                                                FontWeight.Bold
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
                                         )
 
                                         Text(
                                             event.ubicacion,
-                                            color = historyGray
+                                            color = gray
                                         )
 
                                         Text(
                                             event.fechaHora,
-                                            color = historyGray,
+                                            color = gray,
                                             style =
-                                                MaterialTheme
-                                                    .typography.bodySmall
+                                                MaterialTheme.typography.bodySmall
+                                        )
+
+                                        HorizontalDivider(
+                                            color = bg
                                         )
 
                                         Text(
-                                            "Ver detalle",
-                                            color = historyBlue,
+                                            "Ver detalle del incidente",
+                                            color = blue,
                                             style =
-                                                MaterialTheme
-                                                    .typography.labelMedium
+                                                MaterialTheme.typography.labelMedium
                                         )
                                     }
                                 }
@@ -490,7 +639,7 @@ fun EventsScreen(
 }
 
 @Composable
-private fun HistoryMetric(
+private fun EventMetric(
     title: String,
     value: String,
     color: Color,
@@ -499,16 +648,18 @@ private fun HistoryMetric(
     Column(
         modifier = modifier
             .background(
-                historyBg,
+                bg,
                 RoundedCornerShape(12.dp)
             )
             .padding(10.dp)
     ) {
+
         Text(
             title,
-            color = historyGray,
+            color = gray,
             style = MaterialTheme.typography.labelSmall
         )
+
         Text(
             value,
             color = color,
