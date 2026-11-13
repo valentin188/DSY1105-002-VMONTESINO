@@ -1,6 +1,8 @@
 package com.example.modoguardian.ui.screens
 
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -20,9 +22,12 @@ fun ProfileScreen(
     onPhotoUpdated: (String) -> Unit,
     onLogout: () -> Unit
 ) {
-    var fotoUri by remember(user?.id, user?.fotoPerfilUri) {
+    var fotoUri by remember(
+        user?.id,
+        user?.fotoPerfilUri
+    ) {
         mutableStateOf(
-            user?.fotoPerfilUri?.let { Uri.parse(it) }
+            user?.fotoPerfilUri?.let(Uri::parse)
         )
     }
 
@@ -30,10 +35,23 @@ fun ProfileScreen(
         mutableStateOf(false)
     }
 
+    val photoPicker =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri ->
+
+            if (uri != null) {
+                fotoUri = uri
+                onPhotoUpdated(uri.toString())
+            }
+        }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mi Perfil") },
+                title = {
+                    Text("Mi Perfil")
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -51,46 +69,81 @@ fun ProfileScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment =
+                Alignment.CenterHorizontally
         ) {
 
             ImagenInteligente(
-                imageUri = fotoUri,
-                onImageSelected = { uri ->
-                    fotoUri = uri
-                    uri?.let {
-                        onPhotoUpdated(it.toString())
-                    }
-                }
+                fotoUri = fotoUri
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
+
+            OutlinedButton(
+                onClick = {
+                    photoPicker.launch("image/*")
+                },
+                enabled = user != null
+            ) {
+                Text("Cambiar fotografía")
+            }
+
+            Spacer(
+                modifier = Modifier.height(24.dp)
+            )
 
             Text(
-                text = user?.nombre ?: "Usuario desconocido",
-                style = MaterialTheme.typography.headlineMedium
+                text = user?.nombre
+                    ?: "Usuario desconocido",
+                style =
+                    MaterialTheme.typography.headlineMedium
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(
+                modifier = Modifier.height(8.dp)
+            )
 
             Text(
                 text = user?.email ?: "",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style =
+                    MaterialTheme.typography.bodyLarge,
+                color =
+                    MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(
+                modifier = Modifier.height(16.dp)
+            )
 
             AssistChip(
                 onClick = {},
                 label = {
                     Text(
-                        "Rol: ${user?.rol?.name ?: "SIN ROL"}"
+                        "Rol: ${
+                            user?.rol?.name
+                                ?: "SIN ROL"
+                        }"
                     )
                 }
             )
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(
+                modifier = Modifier.height(16.dp)
+            )
+
+            Text(
+                "INSERCODE · Seguridad Integral",
+                style =
+                    MaterialTheme.typography.bodySmall,
+                color =
+                    MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(
+                modifier = Modifier.weight(1f)
+            )
 
             Button(
                 onClick = {
@@ -100,10 +153,11 @@ fun ProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor =
-                        MaterialTheme.colorScheme.error
-                )
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor =
+                            MaterialTheme.colorScheme.error
+                    )
             ) {
                 Text("Cerrar sesión")
             }
@@ -120,7 +174,8 @@ fun ProfileScreen(
             },
             text = {
                 Text(
-                    "¿Estás seguro de que deseas salir de INSERCODE?"
+                    "¿Estás seguro de que deseas " +
+                        "salir de INSERCODE?"
                 )
             },
             confirmButton = {
