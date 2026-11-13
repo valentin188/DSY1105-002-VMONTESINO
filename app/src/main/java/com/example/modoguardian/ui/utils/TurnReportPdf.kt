@@ -7,27 +7,29 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.net.Uri
-import com.example.modoguardian.model.Event
-import com.example.modoguardian.model.User
+
 import com.example.modoguardian.model.EstadoEvento
+import com.example.modoguardian.model.Event
+import com.example.modoguardian.model.MotivoCierre
 import com.example.modoguardian.model.Prioridad
+import com.example.modoguardian.model.User
+
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 object TurnReportPdf {
-
     private const val PAGE_WIDTH = 595
     private const val PAGE_HEIGHT = 842
     private const val MARGIN = 42f
     private const val CONTENT_WIDTH =
         PAGE_WIDTH - MARGIN * 2
-
     private val navy = Color.rgb(11, 20, 38)
     private val blue = Color.rgb(40, 100, 232)
     private val gray = Color.rgb(103, 116, 137)
     private val red = Color.rgb(220, 53, 69)
     private val green = Color.rgb(25, 135, 84)
+    private val yellow = Color.rgb(160, 108, 0)
 
     fun generate(
         context: Context,
@@ -35,16 +37,17 @@ object TurnReportPdf {
         user: User?,
         events: List<Event>
     ) {
-        val document = PdfDocument()
 
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val document = PdfDocument()
+        val paint = Paint(
+            Paint.ANTI_ALIAS_FLAG
+        )
 
         var pageNumber = 0
         var page: PdfDocument.Page? = null
         var canvas: Canvas? = null
         var y = 0f
-
-        fun text(
+        fun drawText(
             value: String,
             x: Float,
             positionY: Float,
@@ -52,16 +55,15 @@ object TurnReportPdf {
             color: Int = navy,
             bold: Boolean = false
         ) {
+
             paint.color = color
             paint.textSize = size
-            paint.typeface = if (bold) {
-                Typeface.create(
-                    Typeface.DEFAULT,
-                    Typeface.BOLD
-                )
-            } else {
-                Typeface.DEFAULT
-            }
+
+            paint.typeface = Typeface.create(
+                Typeface.DEFAULT,
+                if (bold) Typeface.BOLD
+                else Typeface.NORMAL
+            )
 
             canvas?.drawText(
                 value,
@@ -71,10 +73,9 @@ object TurnReportPdf {
             )
         }
 
-        fun line(positionY: Float) {
+        fun drawLine(positionY: Float) {
             paint.color = Color.LTGRAY
             paint.strokeWidth = 1f
-
             canvas?.drawLine(
                 MARGIN,
                 positionY,
@@ -90,7 +91,6 @@ object TurnReportPdf {
             }
 
             pageNumber++
-
             val info = PdfDocument.PageInfo.Builder(
                 PAGE_WIDTH,
                 PAGE_HEIGHT,
@@ -99,9 +99,7 @@ object TurnReportPdf {
 
             page = document.startPage(info)
             canvas = page?.canvas
-
             canvas?.drawColor(Color.WHITE)
-
             paint.color = blue
             canvas?.drawRect(
                 0f,
@@ -111,52 +109,54 @@ object TurnReportPdf {
                 paint
             )
 
-            text(
-                "INSERCODE",
-                MARGIN,
-                47f,
-                19f,
-                navy,
-                true
+            drawText(
+                value = "INSERCODE",
+                x = MARGIN,
+                positionY = 47f,
+                size = 19f,
+                color = navy,
+                bold = true
             )
 
-            text(
-                "SEGURIDAD INTEGRAL",
-                MARGIN,
-                64f,
-                9f,
-                blue,
-                true
+            drawText(
+                value = "SEGURIDAD INTEGRAL",
+                x = MARGIN,
+                positionY = 64f,
+                size = 9f,
+                color = blue,
+                bold = true
             )
 
-            line(78f)
-
-            text(
-                "Reporte de eventos",
-                MARGIN,
-                106f,
-                15f,
-                navy,
-                true
+            drawLine(78f)
+            drawText(
+                value = "Reporte de eventos",
+                x = MARGIN,
+                positionY = 106f,
+                size = 15f,
+                color = navy,
+                bold = true
             )
 
-            text(
-                "Pagina $pageNumber",
-                PAGE_WIDTH - MARGIN - 65f,
-                PAGE_HEIGHT - 24f,
-                9f,
-                gray
+            drawText(
+                value = "Pagina $pageNumber",
+                x = PAGE_WIDTH - MARGIN - 70f,
+                positionY = PAGE_HEIGHT - 24f,
+                size = 9f,
+                color = gray
             )
 
-            y = 130f
+            y = 132f
         }
 
         fun ensureSpace(required: Float) {
-            if (y + required > PAGE_HEIGHT - 55f) {
+            if (
+                y + required >
+                PAGE_HEIGHT - 55f
+            ) {
                 newPage()
             }
         }
-
+        
         fun wrapText(
             value: String,
             maxWidth: Float,
@@ -164,17 +164,16 @@ object TurnReportPdf {
         ): List<String> {
             paint.textSize = size
             paint.typeface = Typeface.DEFAULT
-
             val result = mutableListOf<String>()
             var current = ""
-
-            for (word in value
+            val words = value
                 .replace("\n", " ")
-                .split(Regex("\\s+"))) {
-
+                .split(Regex("\\s+"))
+            for (word in words) {
                 if (word.isBlank()) continue
-
-                val candidate = if (current.isBlank()) {
+                val candidate = if (
+                    current.isBlank()
+                ) {
                     word
                 } else {
                     "$current $word"
@@ -184,17 +183,18 @@ object TurnReportPdf {
                     paint.measureText(candidate) <= maxWidth
                 ) {
                     current = candidate
+
                 } else {
                     if (current.isNotBlank()) {
                         result.add(current)
                     }
 
-                    if (paint.measureText(word) > maxWidth) {
+                    if (
+                        paint.measureText(word) > maxWidth
+                    ) {
                         var piece = ""
-
                         for (char in word) {
                             val next = piece + char
-
                             if (
                                 piece.isNotEmpty() &&
                                 paint.measureText(next) > maxWidth
@@ -207,6 +207,7 @@ object TurnReportPdf {
                         }
 
                         current = piece
+
                     } else {
                         current = word
                     }
@@ -216,7 +217,7 @@ object TurnReportPdf {
             if (current.isNotBlank()) {
                 result.add(current)
             }
-
+            
             return result
         }
 
@@ -227,25 +228,79 @@ object TurnReportPdf {
             bold: Boolean = false
         ) {
             val lines = wrapText(
-                value,
-                CONTENT_WIDTH,
-                size
+                value = value,
+                maxWidth = CONTENT_WIDTH,
+                size = size
             )
 
             for (part in lines) {
                 ensureSpace(18f)
-
-                text(
-                    part,
-                    MARGIN,
-                    y,
-                    size,
-                    color,
-                    bold
+                drawText(
+                    value = part,
+                    x = MARGIN,
+                    positionY = y,
+                    size = size,
+                    color = color,
+                    bold = bold
                 )
 
-                y += 15f
+                y += 16f
             }
+        }
+
+        fun closeReason(
+            event: Event
+        ): String {
+            if (
+                event.estado !=
+                EstadoEvento.RESUELTO
+            ) {
+                return "No corresponde (evento abierto)"
+            }
+
+            return when (event.motivoCierre) {
+                MotivoCierre.FALSA_ALARMA ->
+                    "Falsa alarma"
+                MotivoCierre.INCIDENTE_SOLUCIONADO ->
+                    "Incidente solucionado"
+
+                null ->
+                    "Cierre sin clasificar"
+            }
+        }
+        
+        val total = events.size
+        val critical = events.count {
+            it.prioridad == Prioridad.CRITICA
+        }
+
+        val pending = events.count {
+            it.estado == EstadoEvento.PENDIENTE
+        }
+
+        val inProgress = events.count {
+            it.estado == EstadoEvento.EN_PROCESO
+        }
+
+        val resolved = events.count {
+            it.estado == EstadoEvento.RESUELTO
+        }
+
+        val falseAlarms = events.count {
+            it.estado == EstadoEvento.RESUELTO &&
+                it.motivoCierre ==
+                    MotivoCierre.FALSA_ALARMA
+        }
+
+        val solved = events.count {
+            it.estado == EstadoEvento.RESUELTO &&
+                it.motivoCierre ==
+                    MotivoCierre.INCIDENTE_SOLUCIONADO
+        }
+
+        val unclassified = events.count {
+            it.estado == EstadoEvento.RESUELTO &&
+                it.motivoCierre == null
         }
 
         val dateFormat = SimpleDateFormat(
@@ -253,11 +308,12 @@ object TurnReportPdf {
             Locale("es", "CL")
         )
 
-        val fechaGeneracion = dateFormat.format(Date())
+        val generationDate = dateFormat.format(
+            Date()
+        )
 
         try {
             newPage()
-
             paragraph(
                 "REPORTE DE TURNO",
                 blue,
@@ -266,27 +322,29 @@ object TurnReportPdf {
             )
 
             y += 8f
-
             paragraph(
-                "Generado: $fechaGeneracion"
+                "Generado: $generationDate"
             )
 
             paragraph(
-                "Responsable: ${user?.nombre ?: "No informado"}"
+                "Responsable: " +
+                    (user?.nombre ?: "No informado")
             )
 
             paragraph(
-                "Correo: ${user?.email ?: "No informado"}"
+                "Correo: " +
+                    (user?.email ?: "No informado")
             )
 
             paragraph(
-                "Rol: ${user?.rol?.name ?: "No informado"}"
+                "Rol: " +
+                    (user?.rol?.name ?: "No informado")
             )
 
             y += 14f
-            line(y)
+            ensureSpace(30f)
+            drawLine(y)
             y += 24f
-
             paragraph(
                 "RESUMEN GENERAL",
                 blue,
@@ -295,30 +353,70 @@ object TurnReportPdf {
             )
 
             y += 8f
+            paragraph(
+                "Total de eventos: $total"
+            )
 
-            val total = events.size
+            paragraph(
+                "Eventos criticos: $critical"
+            )
 
-            val criticos = events.count {
-                it.prioridad == Prioridad.CRITICA
-            }
+            paragraph(
+                "Eventos pendientes: $pending"
+            )
 
-            val pendientes = events.count {
-                it.estado == EstadoEvento.PENDIENTE
-            }
+            paragraph(
+                "Eventos en proceso: $inProgress"
+            )
 
-            val resueltos = events.count {
-                it.estado == EstadoEvento.RESUELTO
-            }
+            paragraph(
+                "Eventos resueltos: $resolved"
+            )
 
-            paragraph("Total de eventos: $total")
-            paragraph("Eventos criticos: $criticos")
-            paragraph("Eventos pendientes: $pendientes")
-            paragraph("Eventos resueltos: $resueltos")
+            y += 12f
+            ensureSpace(35f)
+            drawLine(y)
+            y += 24f
+            paragraph(
+                "CLASIFICACION DE CIERRES",
+                blue,
+                12f,
+                true
+            )
+
+            y += 8f
+            paragraph(
+                "Falsas alarmas: $falseAlarms",
+                yellow,
+                10f,
+                true
+            )
+
+            paragraph(
+                "Incidentes solucionados: $solved",
+                green,
+                10f,
+                true
+            )
+
+            paragraph(
+                "Cierres sin clasificar: $unclassified",
+                gray
+            )
+
+            y += 8f
+            paragraph(
+                "Los cierres sin clasificar corresponden " +
+                    "a eventos resueltos que no tienen " +
+                    "un motivo registrado.",
+                gray,
+                9f
+            )
 
             y += 14f
-            line(y)
-            y += 25f
-
+            ensureSpace(35f)
+            drawLine(y)
+            y += 24f
             paragraph(
                 "DETALLE DE EVENTOS",
                 blue,
@@ -327,17 +425,17 @@ object TurnReportPdf {
             )
 
             y += 12f
-
             if (events.isEmpty()) {
                 paragraph(
-                    "No existen eventos para los filtros seleccionados."
+                    "No existen eventos para " +
+                        "los filtros seleccionados."
                 )
             }
 
             events.forEachIndexed { index, event ->
-
+                val title = "${index + 1}. ${event.titulo}"
                 val titleLines = wrapText(
-                    "${index + 1}. ${event.titulo}",
+                    title,
                     CONTENT_WIDTH,
                     11f
                 )
@@ -355,26 +453,27 @@ object TurnReportPdf {
                 )
 
                 val required =
-                    (titleLines.size +
+                    (
+                        titleLines.size +
                         descriptionLines.size +
-                        locationLines.size + 5) * 16f + 20f
+                        locationLines.size + 6
+                    ) * 16f + 24f
 
-                if (required < PAGE_HEIGHT - 180f) {
-                    ensureSpace(required)
-                } else {
-                    ensureSpace(90f)
-                }
+                ensureSpace(
+                    minOf(required, 110f)
+                )
 
                 paragraph(
-                    "${index + 1}. ${event.titulo}",
+                    title,
                     navy,
                     11f,
                     true
                 )
 
                 y += 4f
-
-                paragraph("Codigo: ${event.id}")
+                paragraph(
+                    "Codigo: ${event.id}"
+                )
 
                 paragraph(
                     "Fecha: ${event.fechaHora}"
@@ -387,15 +486,52 @@ object TurnReportPdf {
                 paragraph(
                     "Prioridad: ${event.prioridad.name}",
                     if (
-                        event.prioridad == Prioridad.CRITICA
-                    ) red else navy
+                        event.prioridad ==
+                        Prioridad.CRITICA
+                    ) {
+                        red
+                    } else {
+                        navy
+                    }
                 )
 
                 paragraph(
-                    "Estado: ${event.estado.name.replace("_", " ")}",
+                    "Estado: " +
+                        event.estado.name.replace(
+                            "_",
+                            " "
+                        ),
                     if (
-                        event.estado == EstadoEvento.RESUELTO
-                    ) green else navy
+                        event.estado ==
+                        EstadoEvento.RESUELTO
+                    ) {
+                        green
+                    } else {
+                        navy
+                    }
+                )
+
+                val reason = closeReason(
+                    event
+                )
+
+                val reasonColor = when (
+                    event.motivoCierre
+                ) {
+                    MotivoCierre.FALSA_ALARMA ->
+                        yellow
+                    MotivoCierre.INCIDENTE_SOLUCIONADO ->
+                        green
+                    null ->
+                        gray
+                }
+
+                paragraph(
+                    "Motivo de cierre: $reason",
+                    reasonColor,
+                    10f,
+                    event.estado ==
+                        EstadoEvento.RESUELTO
                 )
 
                 paragraph(
@@ -403,15 +539,13 @@ object TurnReportPdf {
                 )
 
                 y += 12f
-                ensureSpace(8f)
-                line(y)
+                ensureSpace(10f)
+                drawLine(y)
                 y += 20f
             }
 
-            ensureSpace(55f)
-
+            ensureSpace(70f)
             y += 14f
-
             paragraph(
                 "Documento generado por INSERCODE.",
                 gray,
@@ -419,7 +553,17 @@ object TurnReportPdf {
             )
 
             paragraph(
-                "Reporte local de los eventos seleccionados.",
+                "Este reporte contiene " +
+                    "los eventos seleccionados " +
+                    "en el historial de la aplicacion.",
+                gray,
+                9f
+            )
+
+            paragraph(
+                "Sistema de demostracion academica. " +
+                    "No constituye un reporte " +
+                    "de vigilancia certificado.",
                 gray,
                 9f
             )
@@ -430,14 +574,25 @@ object TurnReportPdf {
             }
 
             context.contentResolver
-                .openOutputStream(destination, "w")
+                .openOutputStream(
+                    destination,
+                    "w"
+                )
                 ?.use { output ->
-                    document.writeTo(output)
+
+                    document.writeTo(
+                        output
+                    )
+
                 } ?: error(
                     "No se pudo abrir el destino del PDF"
                 )
 
         } finally {
+            page?.let {
+                document.finishPage(it)
+            }
+
             document.close()
         }
     }
