@@ -12,33 +12,33 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+
 import com.example.modoguardian.model.*
 import com.example.modoguardian.ui.state.UiState
 import com.example.modoguardian.ui.utils.TurnReportPdf
+
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val bg = Color(0xFF0B1426)
-private val cardBg = Color(0xFF1A2943)
-private val blue = Color(0xFF2864E8)
-private val gray = Color(0xFF9BAAC3)
-private val red = Color(0xFFFF5252)
-private val green = Color(0xFF20C997)
-private val yellow = Color(0xFFFFC857)
+private enum class FiltroCierre {
+    TODOS,
+    FALSAS_ALARMAS,
+    SOLUCIONADOS,
+    SIN_CLASIFICAR
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,17 +50,22 @@ fun EventsScreen(
     onNavigateToAdmin: () -> Unit
 ) {
     val context = LocalContext.current
+    val colors = MaterialTheme.colorScheme
 
-    var search by remember {
+    var search by rememberSaveable {
         mutableStateOf("")
     }
 
-    var priorityFilter by remember {
+    var priorityFilter by rememberSaveable {
         mutableStateOf("Todos")
     }
 
-    var statusFilter by remember {
+    var statusFilter by rememberSaveable {
         mutableStateOf("Todos")
+    }
+
+    var closeFilter by rememberSaveable {
+        mutableStateOf(FiltroCierre.TODOS)
     }
 
     var exporting by remember {
@@ -72,40 +77,41 @@ fun EventsScreen(
         else -> emptyList()
     }
 
-    val filteredEvents = remember(
-        events,
-        search,
-        priorityFilter,
-        statusFilter
-    ) {
-        events.filter { event ->
-
-            val matchesSearch =
-                event.titulo.contains(search, true) ||
-                event.ubicacion.contains(search, true) ||
-                event.descripcion.contains(search, true) ||
-                event.id.contains(search, true)
-
-            val matchesPriority =
-                priorityFilter == "Todos" ||
-                event.prioridad.name == priorityFilter
-
-            val matchesStatus =
-                statusFilter == "Todos" ||
-                event.estado.name == statusFilter
-
-            matchesSearch &&
-                matchesPriority &&
-                matchesStatus
-
-        }.sortedByDescending {
-            it.fechaHora
+    val filteredEvents = events.filter { event ->
+        val matchesSearch =
+            event.titulo.contains(search, true) ||
+            event.ubicacion.contains(search, true) ||
+            event.descripcion.contains(search, true) ||
+            event.id.contains(search, true)
+        val matchesPriority =
+            priorityFilter == "Todos" ||
+            event.prioridad.name == priorityFilter
+        val matchesStatus =
+            statusFilter == "Todos" ||
+            event.estado.name == statusFilter
+        val matchesClose = when (closeFilter) {
+            FiltroCierre.TODOS -> true
+            FiltroCierre.FALSAS_ALARMAS ->
+                event.motivoCierre ==
+                    MotivoCierre.FALSA_ALARMA
+            FiltroCierre.SOLUCIONADOS ->
+                event.motivoCierre ==
+                    MotivoCierre.INCIDENTE_SOLUCIONADO
+            FiltroCierre.SIN_CLASIFICAR ->
+                event.estado == EstadoEvento.RESUELTO &&
+                    event.motivoCierre == null
         }
+
+        matchesSearch &&
+            matchesPriority &&
+            matchesStatus &&
+            matchesClose
+    }.sortedByDescending {
+        it.fechaHora
     }
 
     val latestUser by rememberUpdatedState(currentUser)
     val latestEvents by rememberUpdatedState(filteredEvents)
-
     val pdfLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument(
             "application/pdf"
@@ -114,7 +120,6 @@ fun EventsScreen(
 
         if (uri != null) {
             exporting = true
-
             try {
                 TurnReportPdf.generate(
                     context = context,
@@ -133,7 +138,7 @@ fun EventsScreen(
 
                 Toast.makeText(
                     context,
-                    "Error al generar PDF: ${error.message}",
+                    "No se pudo generar el PDF: ${error.message}",
                     Toast.LENGTH_LONG
                 ).show()
 
@@ -144,7 +149,6 @@ fun EventsScreen(
     }
 
     val total = events.size
-
     val critical = events.count {
         it.prioridad == Prioridad.CRITICA &&
             it.estado != EstadoEvento.RESUELTO
@@ -158,37 +162,47 @@ fun EventsScreen(
         it.estado == EstadoEvento.RESUELTO
     }
 
+    val falseAlarms = events.count {
+        it.motivoCierre == MotivoCierre.FALSA_ALARMA
+    }
+
+    val solved = events.count {
+        it.motivoCierre ==
+            MotivoCierre.INCIDENTE_SOLUCIONADO
+    }
+
+    val unclassified = events.count {
+        it.estado == EstadoEvento.RESUELTO &&
+            it.motivoCierre == null
+    }
+
     Scaffold(
-        containerColor = bg,
+        containerColor = colors.background,
         topBar = {
             TopAppBar(
                 title = {
                     Column {
                         Text(
-                            "Historial",
+                            "Historial de Eventos",
                             fontWeight = FontWeight.Bold
                         )
 
                         Text(
                             "INSERCODE · Registro de seguridad",
-                            color = gray,
-                            style = MaterialTheme.typography.labelSmall
+                            color = colors.onSurfaceVariant,
+                            style =
+                                MaterialTheme.typography.labelSmall
                         )
                     }
                 },
                 actions = {
-
-                    if (
-                        currentUser?.rol ==
-                        Role.ADMINISTRADOR
-                    ) {
+                    if (currentUser?.rol == Role.ADMINISTRADOR) {
                         IconButton(
                             onClick = onNavigateToAdmin
                         ) {
                             Icon(
                                 Icons.Default.Shield,
-                                contentDescription = "Administración",
-                                tint = Color.White
+                                contentDescription = "Administración"
                             )
                         }
                     }
@@ -198,120 +212,157 @@ fun EventsScreen(
                     ) {
                         Icon(
                             Icons.Default.Person,
-                            contentDescription = "Mi perfil",
-                            tint = Color.White
+                            contentDescription = "Mi perfil"
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = bg,
-                    titleContentColor = Color.White
+                    containerColor = colors.background,
+                    titleContentColor = colors.onBackground,
+                    actionIconContentColor = colors.onBackground
                 )
             )
         }
     ) { padding ->
-
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = 12.dp,
+                bottom = 28.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-
-            // RESUMEN GENERAL
             item {
                 Card(
+                    shape = RoundedCornerShape(21.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = cardBg
-                    ),
-                    shape = RoundedCornerShape(20.dp)
+                        containerColor = colors.surfaceContainer
+                    )
                 ) {
                     Column(
                         modifier = Modifier.padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                        verticalArrangement =
+                            Arrangement.spacedBy(15.dp)
                     ) {
-
                         Text(
                             "RESUMEN DE EVENTOS",
-                            color = gray,
-                            style = MaterialTheme.typography.labelMedium
+                            color = colors.onSurface,
+                            fontWeight = FontWeight.Bold
                         )
 
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement =
+                                Arrangement.spacedBy(8.dp)
                         ) {
-
-                            EventMetric(
+                            HistoryMetric(
                                 title = "TOTAL",
                                 value = "$total",
-                                color = blue,
+                                icon = Icons.Default.Event,
+                                accent = colors.primary,
                                 modifier = Modifier.weight(1f)
                             )
 
-                            EventMetric(
+                            HistoryMetric(
                                 title = "CRÍTICAS",
                                 value = "$critical",
-                                color = red,
+                                icon = Icons.Default.Warning,
+                                accent = colors.error,
                                 modifier = Modifier.weight(1f)
                             )
 
-                            EventMetric(
+                            HistoryMetric(
                                 title = "PENDIENTES",
                                 value = "$pending",
-                                color = yellow,
+                                icon = Icons.Default.Schedule,
+                                accent = colors.tertiary,
                                 modifier = Modifier.weight(1f)
                             )
                         }
 
-                        Text(
-                            "$resolved eventos resueltos",
-                            color = green
-                        )
-                    }
-                }
-            }
-
-            // EXPORTACIÓN PDF
-            item {
-                Card(
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = cardBg
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-
-                        Text(
-                            "REPORTE DE TURNO",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
+                        HorizontalDivider(
+                            color = colors.outlineVariant
                         )
 
                         Text(
-                            "Exporta los eventos que coincidan " +
-                                "con los filtros seleccionados.",
-                            color = gray,
+                            "$resolved eventos con estado resuelto",
+                            color = colors.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall
                         )
 
                         Text(
-                            "${filteredEvents.size} eventos para exportar",
-                            color = blue,
+                            "Falsas alarmas: $falseAlarms",
+                            color = colors.secondary,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Text(
+                            "Incidentes solucionados: $solved",
+                            color = colors.onSurface
+                        )
+
+                        if (unclassified > 0) {
+                            Text(
+                                "Cierres sin clasificar: $unclassified",
+                                color = colors.tertiary
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = colors.surfaceContainer
+                    ),
+                    shape = RoundedCornerShape(19.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement =
+                            Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement =
+                                Arrangement.spacedBy(9.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.PictureAsPdf,
+                                contentDescription = null,
+                                tint = colors.primary
+                            )
+
+                            Text(
+                                "REPORTE DE EVENTOS",
+                                color = colors.onSurface,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Text(
+                            "Exporta los registros que coinciden " +
+                                "con los filtros seleccionados.",
+                            color = colors.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+
+                        Text(
+                            "${filteredEvents.size} eventos seleccionados",
+                            color = colors.primary,
                             fontWeight = FontWeight.Medium
                         )
 
                         Button(
                             onClick = {
-
-                                val timestamp =
-                                    SimpleDateFormat(
-                                        "yyyyMMdd_HHmm",
-                                        Locale.US
-                                    ).format(Date())
+                                val timestamp = SimpleDateFormat(
+                                    "yyyyMMdd_HHmm",
+                                    Locale.US
+                                ).format(Date())
 
                                 pdfLauncher.launch(
                                     "INSERCODE_Reporte_$timestamp.pdf"
@@ -319,13 +370,11 @@ fun EventsScreen(
                             },
                             enabled =
                                 eventsState is UiState.Success &&
-                                !exporting,
+                                    !exporting,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = blue
-                            )
+                            shape = RoundedCornerShape(15.dp)
                         ) {
                             Icon(
                                 Icons.Default.Download,
@@ -341,22 +390,26 @@ fun EventsScreen(
                                     "Exportar reporte PDF"
                             )
                         }
+
+                        Text(
+                            "La clasificación de cierres se " +
+                                "incorporará al contenido del PDF " +
+                                "en el próximo paso.",
+                            color = colors.onSurfaceVariant,
+                            style =
+                                MaterialTheme.typography.labelSmall
+                        )
                     }
                 }
             }
 
-            // BUSCADOR
             item {
                 OutlinedTextField(
                     value = search,
-                    onValueChange = {
-                        search = it
-                    },
+                    onValueChange = { search = it },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
-                        Text(
-                            "Buscar evento, ubicación o código"
-                        )
+                        Text("Buscar evento, ubicación o código")
                     },
                     leadingIcon = {
                         Icon(
@@ -369,20 +422,21 @@ fun EventsScreen(
                 )
             }
 
-            // PRIORIDAD
             item {
                 Text(
-                    "Filtrar por prioridad",
-                    color = gray
+                    "Prioridad",
+                    color = colors.onSurface,
+                    fontWeight = FontWeight.Medium
                 )
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
 
                 Row(
                     modifier = Modifier.horizontalScroll(
                         rememberScrollState()
                     ),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement =
+                        Arrangement.spacedBy(8.dp)
                 ) {
                     listOf(
                         "Todos",
@@ -394,9 +448,7 @@ fun EventsScreen(
 
                         FilterChip(
                             selected = priorityFilter == option,
-                            onClick = {
-                                priorityFilter = option
-                            },
+                            onClick = { priorityFilter = option },
                             label = {
                                 Text(
                                     when (option) {
@@ -413,20 +465,21 @@ fun EventsScreen(
                 }
             }
 
-            // ESTADO
             item {
                 Text(
-                    "Filtrar por estado",
-                    color = gray
+                    "Estado",
+                    color = colors.onSurface,
+                    fontWeight = FontWeight.Medium
                 )
 
-                Spacer(Modifier.height(8.dp))
-
+                Spacer(Modifier.height(6.dp))
+                
                 Row(
                     modifier = Modifier.horizontalScroll(
                         rememberScrollState()
                     ),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement =
+                        Arrangement.spacedBy(8.dp)
                 ) {
                     listOf(
                         "Todos",
@@ -437,9 +490,7 @@ fun EventsScreen(
 
                         FilterChip(
                             selected = statusFilter == option,
-                            onClick = {
-                                statusFilter = option
-                            },
+                            onClick = { statusFilter = option },
                             label = {
                                 Text(
                                     when (option) {
@@ -455,39 +506,78 @@ fun EventsScreen(
                 }
             }
 
-            // RESULTADOS
+            item {
+                Text(
+                    "Motivo de cierre",
+                    color = colors.onSurface,
+                    fontWeight = FontWeight.Medium
+                )
+
+                Spacer(Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier.horizontalScroll(
+                        rememberScrollState()
+                    ),
+                    horizontalArrangement =
+                        Arrangement.spacedBy(8.dp)
+                ) {
+                    FiltroCierre.entries.forEach { option ->
+                        FilterChip(
+                            selected = closeFilter == option,
+                            onClick = {
+                                closeFilter = option
+                            },
+                            label = {
+                                Text(
+                                    when (option) {
+                                        FiltroCierre.TODOS ->
+                                            "Todos"
+                                        FiltroCierre.FALSAS_ALARMAS ->
+                                            "Falsa alarma"
+                                        FiltroCierre.SOLUCIONADOS ->
+                                            "Solucionado"
+                                        FiltroCierre.SIN_CLASIFICAR ->
+                                            "Sin clasificar"
+                                    }
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement =
+                        Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         "Eventos registrados",
-                        color = Color.White,
+                        color = colors.onBackground,
                         fontWeight = FontWeight.Bold
                     )
 
                     Text(
                         "${filteredEvents.size} resultados",
-                        color = gray
+                        color = colors.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
             }
 
             when (eventsState) {
-
                 UiState.Loading -> {
                     item {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(24.dp),
+                                .padding(26.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(
-                                color = blue
-                            )
+                            CircularProgressIndicator()
                         }
                     }
                 }
@@ -497,138 +587,51 @@ fun EventsScreen(
                         Text(
                             "No se pudieron cargar los eventos: " +
                                 eventsState.message,
-                            color = red
+                            color = colors.error
                         )
                     }
                 }
 
                 is UiState.Success -> {
-
                     if (filteredEvents.isEmpty()) {
-
                         item {
                             Card(
                                 colors = CardDefaults.cardColors(
-                                    containerColor = cardBg
+                                    containerColor = colors.surfaceContainer
                                 )
                             ) {
                                 Text(
                                     "No hay eventos que coincidan " +
-                                        "con los filtros seleccionados.",
+                                        "con los filtros.",
                                     modifier = Modifier.padding(24.dp),
-                                    color = gray
+                                    color = colors.onSurfaceVariant
                                 )
                             }
                         }
-
                     } else {
-
                         val groups = filteredEvents.groupBy {
                             it.fechaHora.substringBefore(" ")
                         }
 
                         groups.forEach { (date, dayEvents) ->
-
                             item(key = "date-$date") {
                                 Text(
                                     date,
-                                    color = gray,
+                                    color = colors.onSurfaceVariant,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
 
                             items(
-                                dayEvents,
+                                items = dayEvents,
                                 key = { it.id }
                             ) { event ->
-
-                                val priorityColor = when (
-                                    event.prioridad
-                                ) {
-                                    Prioridad.CRITICA -> red
-                                    Prioridad.ALTA -> yellow
-                                    Prioridad.MEDIA -> blue
-                                    Prioridad.BAJA -> green
-                                }
-
-                                Card(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            onEventClick(event.id)
-                                        },
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = cardBg
-                                    ),
-                                    shape = RoundedCornerShape(16.dp)
-                                ) {
-
-                                    Column(
-                                        modifier = Modifier.padding(16.dp),
-                                        verticalArrangement =
-                                            Arrangement.spacedBy(8.dp)
-                                    ) {
-
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement =
-                                                Arrangement.SpaceBetween
-                                        ) {
-
-                                            Text(
-                                                event.prioridad.name,
-                                                color = priorityColor,
-                                                fontWeight = FontWeight.Bold,
-                                                style =
-                                                    MaterialTheme.typography.labelSmall
-                                            )
-
-                                            Text(
-                                                event.estado.name.replace(
-                                                    "_",
-                                                    " "
-                                                ),
-                                                color = if (
-                                                    event.estado ==
-                                                    EstadoEvento.RESUELTO
-                                                ) green else gray,
-                                                style =
-                                                    MaterialTheme.typography.labelSmall
-                                            )
-                                        }
-
-                                        Text(
-                                            event.titulo,
-                                            color = Color.White,
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-
-                                        Text(
-                                            event.ubicacion,
-                                            color = gray
-                                        )
-
-                                        Text(
-                                            event.fechaHora,
-                                            color = gray,
-                                            style =
-                                                MaterialTheme.typography.bodySmall
-                                        )
-
-                                        HorizontalDivider(
-                                            color = bg
-                                        )
-
-                                        Text(
-                                            "Ver detalle del incidente",
-                                            color = blue,
-                                            style =
-                                                MaterialTheme.typography.labelMedium
-                                        )
+                                HistoryEventCard(
+                                    event = event,
+                                    onClick = {
+                                        onEventClick(event.id)
                                     }
-                                }
+                                )
                             }
                         }
                     }
@@ -639,32 +642,181 @@ fun EventsScreen(
 }
 
 @Composable
-private fun EventMetric(
+private fun HistoryMetric(
     title: String,
     value: String,
-    color: Color,
+    icon: ImageVector,
+    accent: Color,
     modifier: Modifier = Modifier
 ) {
+    val colors = MaterialTheme.colorScheme
     Column(
         modifier = modifier
             .background(
-                bg,
-                RoundedCornerShape(12.dp)
+                colors.surfaceContainerHighest,
+                RoundedCornerShape(13.dp)
             )
-            .padding(10.dp)
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = accent,
+            modifier = Modifier.size(19.dp)
+        )
 
         Text(
             title,
-            color = gray,
+            color = colors.onSurfaceVariant,
             style = MaterialTheme.typography.labelSmall
         )
 
         Text(
             value,
-            color = color,
+            color = accent,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
+    }
+}
+
+@Composable
+private fun HistoryEventCard(
+    event: Event,
+    onClick: () -> Unit
+) {
+    val colors = MaterialTheme.colorScheme
+    val priorityColor = when (event.prioridad) {
+        Prioridad.CRITICA -> colors.error
+        Prioridad.ALTA -> colors.tertiary
+        Prioridad.MEDIA -> colors.primary
+        Prioridad.BAJA -> colors.secondary
+    }
+
+    val closeReason = when (event.motivoCierre) {
+        MotivoCierre.FALSA_ALARMA ->
+            "Falsa alarma"
+        MotivoCierre.INCIDENTE_SOLUCIONADO ->
+            "Incidente solucionado"
+        null ->
+            if (event.estado == EstadoEvento.RESUELTO)
+                "Cierre sin clasificar"
+            else
+                null
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = colors.surfaceContainer
+        ),
+        shape = RoundedCornerShape(17.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    event.prioridad.name,
+                    color = priorityColor,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelSmall
+                )
+
+                Text(
+                    event.estado.name.replace("_", " "),
+                    color = if (event.estado == EstadoEvento.RESUELTO)
+                        colors.secondary
+                    else
+                        colors.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+
+            Text(
+                event.titulo,
+                color = colors.onSurface,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Text(
+                event.ubicacion,
+                color = colors.onSurfaceVariant
+            )
+
+            Text(
+                event.fechaHora,
+                color = colors.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
+            )
+
+            if (closeReason != null) {
+                Surface(
+                    color = when (event.motivoCierre) {
+                        MotivoCierre.FALSA_ALARMA ->
+                            colors.tertiaryContainer
+
+                        MotivoCierre.INCIDENTE_SOLUCIONADO ->
+                            colors.secondaryContainer
+
+                        null ->
+                            colors.surfaceContainerHighest
+                    },
+                    shape = RoundedCornerShape(9.dp)
+                ) {
+                    Text(
+                        closeReason,
+                        modifier = Modifier.padding(
+                            horizontal = 10.dp,
+                            vertical = 6.dp
+                        ),
+                        color = when (event.motivoCierre) {
+                            MotivoCierre.FALSA_ALARMA ->
+                                colors.onTertiaryContainer
+
+                            MotivoCierre.INCIDENTE_SOLUCIONADO ->
+                                colors.onSecondaryContainer
+
+                            null ->
+                                colors.onSurfaceVariant
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            HorizontalDivider(
+                color = colors.outlineVariant
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Ver detalle del incidente",
+                    color = colors.primary,
+                    style = MaterialTheme.typography.labelMedium
+                )
+
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = colors.onSurfaceVariant
+                )
+            }
+        }
     }
 }
