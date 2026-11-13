@@ -1,5 +1,6 @@
 package com.example.modoguardian.model
 
+//PRIORIDAD DEL EVENTO
 enum class Prioridad {
     CRITICA,
     ALTA,
@@ -7,12 +8,20 @@ enum class Prioridad {
     BAJA
 }
 
+//ESTADO DEL EVENTO
 enum class EstadoEvento {
     PENDIENTE,
     EN_PROCESO,
     RESUELTO
 }
 
+//MOTIVO DE CIERRE
+enum class MotivoCierre {
+    INCIDENTE_SOLUCIONADO,
+    FALSA_ALARMA
+}
+
+//MODELO PRINCIPAL DE EVENTOS
 data class Event(
     val id: String,
     val titulo: String,
@@ -21,5 +30,6 @@ data class Event(
     val prioridad: Prioridad,
     val estado: EstadoEvento,
     val fechaHora: String,
-    val evidenciaFotoUri: String? = null
+    val evidenciaFotoUri: String? = null,
+    val motivoCierre: MotivoCierre? = null
 )
