@@ -1,24 +1,28 @@
 package com.example.modoguardian.data
 
 import android.content.Context
+
 import com.example.modoguardian.data.local.AppDatabase
 import com.example.modoguardian.data.local.toEntity
 import com.example.modoguardian.data.local.toEvent
+
 import com.example.modoguardian.model.EstadoEvento
 import com.example.modoguardian.model.Event
+import com.example.modoguardian.model.MotivoCierre
 import com.example.modoguardian.model.Prioridad
 import com.example.modoguardian.model.Role
 import com.example.modoguardian.model.User
+
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 class GuardianRepository {
-
     companion object {
-
         @Volatile
         private var database: AppDatabase? = null
-
+        // ==================================
+        // INICIALIZAR ROOM
+        // ==================================
         fun inicializar(context: Context) {
             database = AppDatabase.getDatabase(
                 context.applicationContext
@@ -32,6 +36,9 @@ class GuardianRepository {
         }
     }
 
+    // ======================================
+    // USUARIOS DE DEMOSTRACIÓN
+    // ======================================
     private val usuariosPrueba = listOf(
         User(
             "1",
@@ -53,6 +60,9 @@ class GuardianRepository {
         )
     )
 
+    // ======================================
+    // EVENTOS INICIALES DE DEMOSTRACIÓN
+    // ======================================
     private val eventosIniciales = listOf(
         Event(
             id = "EVT-001",
@@ -89,11 +99,18 @@ class GuardianRepository {
         )
     )
 
+    // ======================================
+    // OBTENER USUARIOS
+    // ======================================
     suspend fun obtenerUsuarios(): List<User> {
         return usuariosPrueba
     }
 
+    // ======================================
+    // INICIALIZAR EVENTOS
+    // ======================================
     suspend fun inicializarEventos() {
+
         val dao = obtenerDatabase().eventDao()
 
         if (dao.contarEventos() == 0) {
@@ -105,38 +122,134 @@ class GuardianRepository {
         }
     }
 
+    // ======================================
+    // OBTENER EVENTOS
+    // ======================================
     suspend fun obtenerEventos(): List<Event> {
+
         inicializarEventos()
 
         return obtenerDatabase()
             .eventDao()
             .obtenerEventos()
-            .map { it.toEvent() }
+            .map {
+                it.toEvent()
+            }
     }
 
+    // ======================================
+    // OBSERVAR EVENTOS CON ROOM FLOW
+    // ======================================
     fun observarEventos(): Flow<List<Event>> {
+
         return obtenerDatabase()
             .eventDao()
             .observarEventos()
             .map { entidades ->
-                entidades.map { it.toEvent() }
+
+                entidades.map {
+                    it.toEvent()
+                }
             }
     }
 
+    // ======================================
+    // ACTUALIZAR ESTADO DE EVENTO
+    // ======================================
     suspend fun actualizarEstadoEvento(
         eventoId: String,
         nuevoEstado: EstadoEvento,
-        fotoUri: String? = null
+        fotoUri: String? = null,
+        motivoCierre: MotivoCierre? = null
     ): Boolean {
 
-        val filasActualizadas = obtenerDatabase()
-            .eventDao()
-            .actualizarEstado(
+        if (
+            motivoCierre != null &&
+            nuevoEstado != EstadoEvento.RESUELTO
+        ) {
+            return false
+        }
+
+        val dao = obtenerDatabase().eventDao()
+
+        val filasActualizadas =
+            dao.actualizarEstadoConMotivo(
                 eventoId = eventoId,
                 nuevoEstado = nuevoEstado.name,
+                motivoCierre = motivoCierre?.name,
                 fotoUri = fotoUri
             )
 
         return filasActualizadas > 0
+    }
+
+    // ======================================
+    // RESOLVER INCIDENTE
+    // ======================================
+    suspend fun resolverIncidente(
+        eventoId: String,
+        fotoUri: String? = null
+    ): Boolean {
+
+        return actualizarEstadoEvento(
+            eventoId = eventoId,
+            nuevoEstado = EstadoEvento.RESUELTO,
+            fotoUri = fotoUri,
+            motivoCierre =
+                MotivoCierre.INCIDENTE_SOLUCIONADO
+        )
+    }
+
+    // ======================================
+    // REGISTRAR FALSA ALARMA
+    // ======================================
+    suspend fun registrarFalsaAlarma(
+        eventoId: String,
+        fotoUri: String? = null
+    ): Boolean {
+
+        return actualizarEstadoEvento(
+            eventoId = eventoId,
+            nuevoEstado = EstadoEvento.RESUELTO,
+            fotoUri = fotoUri,
+            motivoCierre = MotivoCierre.FALSA_ALARMA
+        )
+    }
+
+    // ======================================
+    // CONSULTAR FALSAS ALARMAS
+    // ======================================
+    suspend fun obtenerFalsasAlarmas(): List<Event> {
+
+        return obtenerDatabase()
+            .eventDao()
+            .obtenerFalsasAlarmas()
+            .map {
+                it.toEvent()
+            }
+    }
+
+    // ======================================
+    // CONTAR FALSAS ALARMAS
+    // ======================================
+    suspend fun contarFalsasAlarmas(): Int {
+
+        return obtenerDatabase()
+            .eventDao()
+            .contarFalsasAlarmas()
+    }
+
+    // ======================================
+    // CONSULTAR INCIDENTES SOLUCIONADOS
+    // ======================================
+    suspend fun obtenerIncidentesSolucionados():
+        List<Event> {
+
+        return obtenerDatabase()
+            .eventDao()
+            .obtenerIncidentesSolucionados()
+            .map {
+                it.toEvent()
+            }
     }
 }
