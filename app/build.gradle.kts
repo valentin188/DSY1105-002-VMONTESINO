@@ -1,9 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-
-    // Compatible con AGP 9 para Room
-    id("com.android.legacy-kapt") version "9.3.3"
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -12,6 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.modoguardian"
+
         minSdk = 33
         targetSdk = 35
 
@@ -50,12 +49,12 @@ android {
 
 dependencies {
 
-    // Jetpack Compose
-    implementation(
-        platform(
-            "androidx.compose:compose-bom:2024.06.00"
-        )
+    val composeBom = platform(
+        "androidx.compose:compose-bom:2024.06.00"
     )
+
+    implementation(composeBom)
+    androidTestImplementation(composeBom)
 
     implementation(
         "androidx.activity:activity-compose:1.9.0"
@@ -85,12 +84,10 @@ dependencies {
         "androidx.compose.material3:material3-window-size-class:1.2.1"
     )
 
-    // Android
     implementation(
         "androidx.core:core-ktx:1.13.1"
     )
 
-    // MVVM
     implementation(
         "androidx.lifecycle:lifecycle-runtime-ktx:2.8.2"
     )
@@ -103,12 +100,10 @@ dependencies {
         "androidx.lifecycle:lifecycle-runtime-compose:2.8.2"
     )
 
-    // Navegación
     implementation(
         "androidx.navigation:navigation-compose:2.7.7"
     )
 
-    // Retrofit
     implementation(
         "com.squareup.retrofit2:retrofit:2.11.0"
     )
@@ -117,13 +112,11 @@ dependencies {
         "com.squareup.retrofit2:converter-gson:2.11.0"
     )
 
-    // Corrutinas
     implementation(
         "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0"
     )
 
-    // Room
-    val roomVersion = "2.6.1"
+    val roomVersion = "2.8.5"
 
     implementation(
         "androidx.room:room-runtime:$roomVersion"
@@ -133,21 +126,18 @@ dependencies {
         "androidx.room:room-ktx:$roomVersion"
     )
 
-    kapt(
+    ksp(
         "androidx.room:room-compiler:$roomVersion"
     )
 
-    // Preferencias
     implementation(
         "androidx.datastore:datastore-preferences:1.1.1"
     )
 
-    // Imágenes
     implementation(
         "io.coil-kt:coil-compose:2.6.0"
     )
 
-    // Pruebas unitarias
     testImplementation(
         "io.kotest:kotest-runner-junit5:5.8.6"
     )
@@ -169,13 +159,6 @@ dependencies {
     )
 
     testImplementation(libs.junit)
-
-    // Pruebas de interfaz
-    androidTestImplementation(
-        platform(
-            "androidx.compose:compose-bom:2024.06.00"
-        )
-    )
 
     androidTestImplementation(
         "androidx.compose.ui:ui-test-junit4"
