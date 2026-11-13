@@ -16,7 +16,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
-
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 
@@ -27,7 +26,6 @@ import androidx.navigation.compose.rememberNavController
 
 import com.example.modoguardian.data.GuardianRepository
 import com.example.modoguardian.model.EstadoEvento
-import com.example.modoguardian.model.MotivoCierre
 import com.example.modoguardian.model.Role
 
 import com.example.modoguardian.navigation.NavigationEvent
@@ -42,36 +40,55 @@ import com.example.modoguardian.viewmodel.EventsViewModel
 import com.example.modoguardian.viewmodel.LoginViewModel
 
 class MainActivity : ComponentActivity() {
+
     private val authViewModel: AuthViewModel by viewModels()
     private val eventsViewModel: EventsViewModel by viewModels()
     private val loginViewModel: LoginViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         GuardianRepository.inicializar(applicationContext)
+
         val preferences = getSharedPreferences(
             "insercode_profile_preferences",
             Context.MODE_PRIVATE
         )
+
         val profilePhotos = getSharedPreferences(
             "insercode_profile_photos",
             Context.MODE_PRIVATE
         )
+
         setContent {
+
+            // ==================================
+            // ESTADOS GENERALES
+            // ==================================
+
             val currentUser by
                 authViewModel.currentUser.collectAsState()
+
             val eventsState by
                 eventsViewModel.eventsState.collectAsState()
+
             val saving by
                 eventsViewModel.saving.collectAsState()
+
             val operationError by
                 eventsViewModel.operationError.collectAsState()
+
             val operationMessage by
                 eventsViewModel.operationMessage.collectAsState()
+
             val navController = rememberNavController()
+
             val backStackEntry by
                 navController.currentBackStackEntryAsState()
+
             val currentRoute =
                 backStackEntry?.destination?.route
+
             val homeRoutes = listOf(
                 Screen.HomeAdmin.route,
                 Screen.HomeSupervisor.route,
@@ -81,25 +98,33 @@ class MainActivity : ComponentActivity() {
             val homeRoute = when (currentUser?.rol) {
                 Role.ADMINISTRADOR ->
                     Screen.HomeAdmin.route
+
                 Role.SUPERVISOR ->
                     Screen.HomeSupervisor.route
+
                 Role.OPERADOR ->
                     Screen.HomeOperador.route
+
                 else ->
                     Screen.Login.route
             }
 
             // ==================================
-            // PREFERENCIA DE MODO OSCURO
+            // PREFERENCIA DE TEMA
             // ==================================
+
             var darkTheme by remember {
                 mutableStateOf(true)
             }
 
             DisposableEffect(currentUser?.id) {
+
                 val userId = currentUser?.id
+
                 if (userId != null) {
+
                     val key = "${userId}_dark_mode"
+
                     darkTheme = preferences.getBoolean(
                         key,
                         true
@@ -133,38 +158,43 @@ class MainActivity : ComponentActivity() {
                     }
 
                 } else {
-
                     darkTheme = true
-
                     onDispose {}
                 }
             }
 
             // ==================================
-            // RECUPERAR FOTOGRAFÍA DEL PERFIL
+            // FOTOGRAFÍA DEL PERFIL
             // ==================================
+
             LaunchedEffect(currentUser?.id) {
+
                 val userId = currentUser?.id
+
                 if (userId != null) {
-                    val savedPhoto = profilePhotos.getString(
+
+                    val photo = profilePhotos.getString(
                         "photo_$userId",
                         null
                     )
+
                     if (
-                        !savedPhoto.isNullOrBlank() &&
-                        savedPhoto != currentUser?.fotoPerfilUri
+                        !photo.isNullOrBlank() &&
+                        photo != currentUser?.fotoPerfilUri
                     ) {
                         authViewModel.actualizarFotoPerfil(
-                            savedPhoto
+                            photo
                         )
                     }
                 }
             }
 
             // ==================================
-            // PROTEGER RUTAS SIN SESIÓN
+            // PROTECCIÓN DE NAVEGACIÓN
             // ==================================
+
             LaunchedEffect(currentUser, currentRoute) {
+
                 if (
                     currentRoute != null &&
                     currentRoute != Screen.Login.route &&
@@ -183,19 +213,23 @@ class MainActivity : ComponentActivity() {
             }
 
             // ==================================
-            // NAVEGACIÓN DESDE LOGIN
+            // INICIO DE SESIÓN
             // ==================================
+
             LaunchedEffect(loginViewModel) {
-                loginViewModel.navigationEvent.collect {
-                    event ->
+
+                loginViewModel.navigationEvent.collect { event ->
+
                     when (event) {
+
                         is NavigationEvent.NavigateTo -> {
-                            val loginSuccess =
+
+                            val success =
                                 authViewModel.iniciarSesionDemo(
                                     event.route
                                 )
-                            if (loginSuccess) {
 
+                            if (success) {
                                 navController.navigate(
                                     event.route
                                 ) {
@@ -219,8 +253,9 @@ class MainActivity : ComponentActivity() {
             }
 
             // ==================================
-            // TEMA GENERAL INSERCODE
+            // TEMA GLOBAL INSERCODE
             // ==================================
+
             ModoGuardianTheme(
                 darkTheme = darkTheme
             ) {
@@ -235,6 +270,7 @@ class MainActivity : ComponentActivity() {
                     )
 
                 fun navigateToTab(route: String) {
+
                     if (
                         currentUser == null ||
                         route == Screen.Login.route
@@ -254,7 +290,9 @@ class MainActivity : ComponentActivity() {
 
                 Scaffold(
                     bottomBar = {
+
                         if (showBottomBar) {
+
                             NavigationBar(
                                 containerColor =
                                     MaterialTheme.colorScheme.surface
@@ -362,7 +400,11 @@ class MainActivity : ComponentActivity() {
                             scaffoldPadding
                         )
                     ) {
-                        //Login
+
+                        // ==========================
+                        // LOGIN
+                        // ==========================
+
                         composable(
                             Screen.Login.route
                         ) {
@@ -371,9 +413,14 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        //Incio según rol
+                        // ==========================
+                        // INICIO SEGÚN ROL
+                        // ==========================
+
                         homeRoutes.forEach { route ->
+
                             composable(route) {
+
                                 HomeScreen(
                                     user = currentUser,
                                     eventsState = eventsState,
@@ -407,23 +454,26 @@ class MainActivity : ComponentActivity() {
 
                                         navController.navigate(
                                             Screen.EventDetail
-                                                .createRoute(
-                                                    eventId
-                                                )
+                                                .createRoute(eventId)
                                         )
                                     }
                                 )
                             }
                         }
 
-                        //Cámaras
+                        // ==========================
+                        // CÁMARAS
+                        // ==========================
+
                         composable("cameras") {
+
                             CamerasScreen(
                                 onBack = {
                                     navController.popBackStack()
                                 },
 
                                 onCameraClick = { cameraId ->
+
                                     navController.navigate(
                                         "camera/$cameraId"
                                     )
@@ -431,7 +481,10 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        //Desatalle de cámara
+                        // ==========================
+                        // DETALLE DE CÁMARA
+                        // ==========================
+
                         composable(
                             "camera/{cameraId}"
                         ) { entry ->
@@ -449,7 +502,10 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        //Alertas
+                        // ==========================
+                        // ALERTAS
+                        // ==========================
+
                         composable("alerts") {
 
                             AlertsScreen(
@@ -459,7 +515,6 @@ class MainActivity : ComponentActivity() {
                                     navController.popBackStack()
                                 },
 
-                                //Confirmar alerta.
                                 onStatusChange = {
                                     eventId, status ->
 
@@ -470,7 +525,6 @@ class MainActivity : ComponentActivity() {
                                         )
                                 },
 
-                                //Resolver o registrar falsa alarma.
                                 onCloseWithReason = {
                                     eventId, reason ->
 
@@ -483,14 +537,16 @@ class MainActivity : ComponentActivity() {
                                         )
                                 },
 
-                                //Indicadores de operación.
                                 saving = saving,
                                 operationError = operationError,
                                 operationMessage = operationMessage
                             )
                         }
 
-                        //Historial de eventos
+                        // ==========================
+                        // HISTORIAL DE EVENTOS
+                        // ==========================
+
                         composable(
                             Screen.Events.route
                         ) {
@@ -508,9 +564,7 @@ class MainActivity : ComponentActivity() {
 
                                     navController.navigate(
                                         Screen.EventDetail
-                                            .createRoute(
-                                                eventId
-                                            )
+                                            .createRoute(eventId)
                                     )
                                 },
 
@@ -533,49 +587,78 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        //Detalle de evento
+                        // ==========================
+                        // DETALLE DE EVENTO
+                        // ==========================
+
                         composable(
                             Screen.EventDetail.route
                         ) { entry ->
+
                             val eventId =
                                 entry.arguments
                                     ?.getString("eventId")
                                     .orEmpty()
+
                             val selectedEvent =
                                 when (val state = eventsState) {
                                     is UiState.Success ->
                                         state.data.find {
                                             it.id == eventId
                                         }
-                                        
+
                                     else -> null
                                 }
 
                             EventDetailScreen(
                                 event = selectedEvent,
+
                                 onBack = {
                                     navController.popBackStack()
                                 },
 
+                                // Confirmar alerta y
+                                // conservar evidencia.
                                 onStatusChange = {
                                     status, photoUri ->
+
                                     eventsViewModel
                                         .cambiarEstadoEvento(
                                             eventoId = eventId,
                                             nuevoEstado = status,
                                             fotoUri = photoUri
                                         )
+                                },
+
+                                // NUEVA CONEXIÓN:
+                                // Resolver con motivo de cierre
+                                // y conservar evidencia.
+                                onCloseWithReason = {
+                                    reason, photoUri ->
+
+                                    eventsViewModel
+                                        .cambiarEstadoEvento(
+                                            eventoId = eventId,
+                                            nuevoEstado =
+                                                EstadoEvento.RESUELTO,
+                                            fotoUri = photoUri,
+                                            motivoCierre = reason
+                                        )
                                 }
                             )
                         }
 
-                        //Perfil
+                        // ==========================
+                        // PERFIL
+                        // ==========================
+
                         composable(
                             Screen.Perfil.route
                         ) {
 
                             ProfileScreen(
                                 user = currentUser,
+
                                 onBack = {
                                     navController.popBackStack()
                                 },
@@ -585,9 +668,10 @@ class MainActivity : ComponentActivity() {
                                 },
 
                                 onPhotoUpdated = { uri ->
-                                    val userId = currentUser?.id
-                                    if (userId != null) {
 
+                                    val userId = currentUser?.id
+
+                                    if (userId != null) {
                                         profilePhotos.edit()
                                             .putString(
                                                 "photo_$userId",
@@ -597,14 +681,14 @@ class MainActivity : ComponentActivity() {
                                     }
 
                                     authViewModel
-                                        .actualizarFotoPerfil(
-                                            uri
-                                        )
+                                        .actualizarFotoPerfil(uri)
                                 },
 
                                 onLogout = {
+
                                     loginViewModel.cerrarSesion()
                                     authViewModel.cerrarSesion()
+
                                     navController.navigate(
                                         Screen.Login.route
                                     ) {
@@ -613,23 +697,32 @@ class MainActivity : ComponentActivity() {
                                         ) {
                                             inclusive = false
                                         }
+
                                         launchSingleTop = true
                                     }
                                 }
                             )
                         }
 
+                        // ==========================
+                        // ADMINISTRACIÓN TEMPORAL
+                        // ==========================
+
                         composable(
                             Screen.Admin.route
                         ) {
+
                             if (
                                 currentUser?.rol ==
                                 Role.ADMINISTRADOR
                             ) {
+
                                 EventsScreen(
                                     currentUser = currentUser,
                                     eventsState = eventsState,
+
                                     onEventClick = { eventId ->
+
                                         eventsViewModel
                                             .seleccionarEventoPorId(
                                                 eventId
@@ -637,9 +730,7 @@ class MainActivity : ComponentActivity() {
 
                                         navController.navigate(
                                             Screen.EventDetail
-                                                .createRoute(
-                                                    eventId
-                                                )
+                                                .createRoute(eventId)
                                         )
                                     },
 
@@ -653,6 +744,7 @@ class MainActivity : ComponentActivity() {
                                 )
 
                             } else {
+
                                 LaunchedEffect(Unit) {
                                     navController.popBackStack()
                                 }
