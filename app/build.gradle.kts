@@ -8,45 +8,62 @@ plugins {
 
 val insercodeKeystorePath =
     System.getenv("INSERCODE_KEYSTORE_PATH")
+
 val insercodeKeystorePassword =
     System.getenv("INSERCODE_KEYSTORE_PASSWORD")
+
 val usarFirmaPermanente =
     !insercodeKeystorePath.isNullOrBlank() &&
     !insercodeKeystorePassword.isNullOrBlank()
 
 android {
+
     namespace = "com.example.modoguardian"
     compileSdk = 35
+
     defaultConfig {
+
         applicationId = "com.example.modoguardian"
+
         minSdk = 33
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+
+        versionCode = 2
+        versionName = "1.0.1"
+
         testInstrumentationRunner =
             "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
+
         if (usarFirmaPermanente) {
+
             create("insercodeDebug") {
+
                 storeFile = file(
                     insercodeKeystorePath!!
                 )
 
                 storePassword =
                     insercodeKeystorePassword
+
                 keyAlias = "insercode"
+
                 keyPassword =
                     insercodeKeystorePassword
+
                 storeType = "pkcs12"
             }
         }
     }
 
     buildTypes {
+
         getByName("debug") {
+
             if (usarFirmaPermanente) {
+
                 signingConfig =
                     signingConfigs.getByName(
                         "insercodeDebug"
@@ -55,7 +72,9 @@ android {
         }
 
         getByName("release") {
+
             isMinifyEnabled = false
+
             proguardFiles(
                 getDefaultProguardFile(
                     "proguard-android-optimize.txt"
@@ -66,8 +85,10 @@ android {
     }
 
     compileOptions {
+
         sourceCompatibility =
             JavaVersion.VERSION_17
+
         targetCompatibility =
             JavaVersion.VERSION_17
     }
@@ -78,12 +99,14 @@ android {
 }
 
 dependencies {
+
     val composeBom = platform(
         "androidx.compose:compose-bom:2024.06.00"
     )
 
     implementation(composeBom)
     androidTestImplementation(composeBom)
+
     implementation(
         "androidx.activity:activity-compose:1.9.0"
     )
@@ -190,9 +213,7 @@ dependencies {
         "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0"
     )
 
-    testImplementation(
-        libs.junit
-    )
+    testImplementation(libs.junit)
 
     androidTestImplementation(
         "androidx.compose.ui:ui-test-junit4"
