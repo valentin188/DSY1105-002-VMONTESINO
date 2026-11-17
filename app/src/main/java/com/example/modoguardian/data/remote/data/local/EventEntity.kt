@@ -11,7 +11,6 @@ import com.example.modoguardian.model.Prioridad
 // TABLA DE EVENTOS DE INSERCODE
 @Entity(tableName = "eventos")
 data class EventEntity(
-
     @PrimaryKey
     val id: String,
     val titulo: String,
@@ -22,6 +21,10 @@ data class EventEntity(
     val fechaHora: String,
     val evidenciaFotoUri: String? = null,
     val motivoCierre: String? = null
+    val evidenciaVideoUri: String? = null,
+    val cameraId: String? = null,
+    val reportadoPorId: String? = null,
+    val reportadoPorNombre: String? = null
 )
 
 // CONVERTIR ENTIDAD ROOM A MODELO
@@ -37,6 +40,10 @@ fun EventEntity.toEvent(): Event {
         evidenciaFotoUri = evidenciaFotoUri,
         motivoCierre = motivoCierre?.let {
             MotivoCierre.valueOf(it)
+            evidenciaVideoUri = evidenciaVideoUri,
+            cameraId = cameraId,
+            reportadoPorId = reportadoPorId,
+            reportadoPorNombre = reportadoPorNombre
         }
     )
 }
@@ -53,5 +60,9 @@ fun Event.toEntity(): EventEntity {
         fechaHora = fechaHora,
         evidenciaFotoUri = evidenciaFotoUri,
         motivoCierre = motivoCierre?.name
+        evidenciaVideoUri = evidenciaVideoUri,
+        cameraId = cameraId,
+        reportadoPorId = reportadoPorId,
+        reportadoPorNombre = reportadoPorNombre
     )
 }
