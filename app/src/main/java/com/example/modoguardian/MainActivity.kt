@@ -10,6 +10,7 @@ import androidx.activity.viewModels
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
@@ -62,10 +63,6 @@ class MainActivity : ComponentActivity() {
 
         setContent {
 
-            // ==================================
-            // ESTADOS GENERALES
-            // ==================================
-
             val currentUser by
                 authViewModel.currentUser.collectAsState()
 
@@ -109,10 +106,7 @@ class MainActivity : ComponentActivity() {
                     Screen.Login.route
             }
 
-            // ==================================
-            // PREFERENCIA DE TEMA
-            // ==================================
-
+            // Preferencia de tema.
             var darkTheme by remember {
                 mutableStateOf(true)
             }
@@ -163,10 +157,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // ==================================
-            // FOTOGRAFÍA DEL PERFIL
-            // ==================================
-
+            // Fotografía del perfil.
             LaunchedEffect(currentUser?.id) {
 
                 val userId = currentUser?.id
@@ -182,17 +173,12 @@ class MainActivity : ComponentActivity() {
                         !photo.isNullOrBlank() &&
                         photo != currentUser?.fotoPerfilUri
                     ) {
-                        authViewModel.actualizarFotoPerfil(
-                            photo
-                        )
+                        authViewModel.actualizarFotoPerfil(photo)
                     }
                 }
             }
 
-            // ==================================
-            // PROTECCIÓN DE NAVEGACIÓN
-            // ==================================
-
+            // Protección de navegación.
             LaunchedEffect(currentUser, currentRoute) {
 
                 if (
@@ -200,22 +186,16 @@ class MainActivity : ComponentActivity() {
                     currentRoute != Screen.Login.route &&
                     currentUser == null
                 ) {
-                    navController.navigate(
-                        Screen.Login.route
-                    ) {
+                    navController.navigate(Screen.Login.route) {
                         popUpTo(navController.graph.id) {
                             inclusive = false
                         }
-
                         launchSingleTop = true
                     }
                 }
             }
 
-            // ==================================
-            // INICIO DE SESIÓN
-            // ==================================
-
+            // Inicio de sesión.
             LaunchedEffect(loginViewModel) {
 
                 loginViewModel.navigationEvent.collect { event ->
@@ -230,15 +210,10 @@ class MainActivity : ComponentActivity() {
                                 )
 
                             if (success) {
-                                navController.navigate(
-                                    event.route
-                                ) {
-                                    popUpTo(
-                                        Screen.Login.route
-                                    ) {
+                                navController.navigate(event.route) {
+                                    popUpTo(Screen.Login.route) {
                                         inclusive = true
                                     }
-
                                     launchSingleTop = true
                                 }
                             }
@@ -252,19 +227,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // ==================================
-            // TEMA GLOBAL INSERCODE
-            // ==================================
-
-            ModoGuardianTheme(
-                darkTheme = darkTheme
-            ) {
+            ModoGuardianTheme(darkTheme = darkTheme) {
 
                 val showBottomBar =
                     currentUser != null &&
                     (
                         currentRoute == "cameras" ||
                         currentRoute == "alerts" ||
+                        currentRoute == "report" ||
                         currentRoute == Screen.Events.route ||
                         currentRoute == Screen.Perfil.route
                     )
@@ -282,7 +252,6 @@ class MainActivity : ComponentActivity() {
                         popUpTo(homeRoute) {
                             saveState = true
                         }
-
                         launchSingleTop = true
                         restoreState = true
                     }
@@ -299,8 +268,7 @@ class MainActivity : ComponentActivity() {
                             ) {
 
                                 NavigationBarItem(
-                                    selected =
-                                        currentRoute in homeRoutes,
+                                    selected = currentRoute in homeRoutes,
                                     onClick = {
                                         navigateToTab(homeRoute)
                                     },
@@ -310,14 +278,11 @@ class MainActivity : ComponentActivity() {
                                             contentDescription = "Inicio"
                                         )
                                     },
-                                    label = {
-                                        Text("Inicio")
-                                    }
+                                    label = { Text("Inicio") }
                                 )
 
                                 NavigationBarItem(
-                                    selected =
-                                        currentRoute == "cameras",
+                                    selected = currentRoute == "cameras",
                                     onClick = {
                                         navigateToTab("cameras")
                                     },
@@ -327,19 +292,14 @@ class MainActivity : ComponentActivity() {
                                             contentDescription = "Cámaras"
                                         )
                                     },
-                                    label = {
-                                        Text("Cámaras")
-                                    }
+                                    label = { Text("Cámaras") }
                                 )
 
                                 NavigationBarItem(
                                     selected =
-                                        currentRoute ==
-                                            Screen.Events.route,
+                                        currentRoute == Screen.Events.route,
                                     onClick = {
-                                        navigateToTab(
-                                            Screen.Events.route
-                                        )
+                                        navigateToTab(Screen.Events.route)
                                     },
                                     icon = {
                                         Icon(
@@ -347,14 +307,11 @@ class MainActivity : ComponentActivity() {
                                             contentDescription = "Eventos"
                                         )
                                     },
-                                    label = {
-                                        Text("Eventos")
-                                    }
+                                    label = { Text("Eventos") }
                                 )
 
                                 NavigationBarItem(
-                                    selected =
-                                        currentRoute == "alerts",
+                                    selected = currentRoute == "alerts",
                                     onClick = {
                                         navigateToTab("alerts")
                                     },
@@ -364,19 +321,35 @@ class MainActivity : ComponentActivity() {
                                             contentDescription = "Alertas"
                                         )
                                     },
-                                    label = {
-                                        Text("Alertas")
-                                    }
+                                    label = { Text("Alertas") }
                                 )
+
+                                // Solo el supervisor ve esta opción.
+                                if (currentUser?.rol == Role.SUPERVISOR) {
+                                    NavigationBarItem(
+                                        selected =
+                                            currentRoute == "report",
+                                        onClick = {
+                                            navigateToTab("report")
+                                        },
+                                        icon = {
+                                            Icon(
+                                                Icons.Default.AddCircle,
+                                                contentDescription =
+                                                    "Crear reporte"
+                                            )
+                                        },
+                                        label = {
+                                            Text("Reporte")
+                                        }
+                                    )
+                                }
 
                                 NavigationBarItem(
                                     selected =
-                                        currentRoute ==
-                                            Screen.Perfil.route,
+                                        currentRoute == Screen.Perfil.route,
                                     onClick = {
-                                        navigateToTab(
-                                            Screen.Perfil.route
-                                        )
+                                        navigateToTab(Screen.Perfil.route)
                                     },
                                     icon = {
                                         Icon(
@@ -384,9 +357,7 @@ class MainActivity : ComponentActivity() {
                                             contentDescription = "Perfil"
                                         )
                                     },
-                                    label = {
-                                        Text("Perfil")
-                                    }
+                                    label = { Text("Perfil") }
                                 )
                             }
                         }
@@ -396,27 +367,17 @@ class MainActivity : ComponentActivity() {
                     NavHost(
                         navController = navController,
                         startDestination = Screen.Login.route,
-                        modifier = Modifier.padding(
-                            scaffoldPadding
-                        )
+                        modifier = Modifier.padding(scaffoldPadding)
                     ) {
 
-                        // ==========================
-                        // LOGIN
-                        // ==========================
-
-                        composable(
-                            Screen.Login.route
-                        ) {
+                        // LOGIN.
+                        composable(Screen.Login.route) {
                             LoginScreen(
                                 viewModel = loginViewModel
                             )
                         }
 
-                        // ==========================
-                        // INICIO SEGÚN ROL
-                        // ==========================
-
+                        // INICIO SEGÚN ROL.
                         homeRoutes.forEach { route ->
 
                             composable(route) {
@@ -426,15 +387,11 @@ class MainActivity : ComponentActivity() {
                                     eventsState = eventsState,
 
                                     onOpenEvents = {
-                                        navigateToTab(
-                                            Screen.Events.route
-                                        )
+                                        navigateToTab(Screen.Events.route)
                                     },
 
                                     onOpenProfile = {
-                                        navigateToTab(
-                                            Screen.Perfil.route
-                                        )
+                                        navigateToTab(Screen.Perfil.route)
                                     },
 
                                     onOpenCameras = {
@@ -448,9 +405,7 @@ class MainActivity : ComponentActivity() {
                                     onOpenEvent = { eventId ->
 
                                         eventsViewModel
-                                            .seleccionarEventoPorId(
-                                                eventId
-                                            )
+                                            .seleccionarEventoPorId(eventId)
 
                                         navController.navigate(
                                             Screen.EventDetail
@@ -461,19 +416,14 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // ==========================
-                        // CÁMARAS
-                        // ==========================
-
+                        // CÁMARAS.
                         composable("cameras") {
 
                             CamerasScreen(
                                 onBack = {
                                     navController.popBackStack()
                                 },
-
                                 onCameraClick = { cameraId ->
-
                                     navController.navigate(
                                         "camera/$cameraId"
                                     )
@@ -481,13 +431,8 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // ==========================
-                        // DETALLE DE CÁMARA
-                        // ==========================
-
-                        composable(
-                            "camera/{cameraId}"
-                        ) { entry ->
+                        // DETALLE DE CÁMARA.
+                        composable("camera/{cameraId}") { entry ->
 
                             val cameraId =
                                 entry.arguments
@@ -502,10 +447,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // ==========================
-                        // ALERTAS
-                        // ==========================
-
+                        // ALERTAS.
                         composable("alerts") {
 
                             AlertsScreen(
@@ -515,26 +457,19 @@ class MainActivity : ComponentActivity() {
                                     navController.popBackStack()
                                 },
 
-                                onStatusChange = {
-                                    eventId, status ->
-
-                                    eventsViewModel
-                                        .cambiarEstadoEvento(
-                                            eventoId = eventId,
-                                            nuevoEstado = status
-                                        )
+                                onStatusChange = { eventId, status ->
+                                    eventsViewModel.cambiarEstadoEvento(
+                                        eventoId = eventId,
+                                        nuevoEstado = status
+                                    )
                                 },
 
-                                onCloseWithReason = {
-                                    eventId, reason ->
-
-                                    eventsViewModel
-                                        .cambiarEstadoEvento(
-                                            eventoId = eventId,
-                                            nuevoEstado =
-                                                EstadoEvento.RESUELTO,
-                                            motivoCierre = reason
-                                        )
+                                onCloseWithReason = { eventId, reason ->
+                                    eventsViewModel.cambiarEstadoEvento(
+                                        eventoId = eventId,
+                                        nuevoEstado = EstadoEvento.RESUELTO,
+                                        motivoCierre = reason
+                                    )
                                 },
 
                                 saving = saving,
@@ -543,13 +478,38 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // ==========================
-                        // HISTORIAL DE EVENTOS
-                        // ==========================
+                        // CREAR REPORTE: SOLO SUPERVISOR.
+                        composable("report") {
 
-                        composable(
-                            Screen.Events.route
-                        ) {
+                            if (currentUser?.rol == Role.SUPERVISOR) {
+
+                                ReportIncidentScreen(
+                                    currentUser = currentUser,
+                                    saving = saving,
+                                    operationError = operationError,
+                                    operationMessage = operationMessage,
+
+                                    onBack = {
+                                        navController.popBackStack()
+                                    },
+
+                                    onSave = { evento, usuario ->
+                                        eventsViewModel.registrarReporte(
+                                            evento = evento,
+                                            usuario = usuario
+                                        )
+                                    }
+                                )
+
+                            } else {
+                                LaunchedEffect(Unit) {
+                                    navController.popBackStack()
+                                }
+                            }
+                        }
+
+                        // HISTORIAL DE EVENTOS.
+                        composable(Screen.Events.route) {
 
                             EventsScreen(
                                 currentUser = currentUser,
@@ -558,9 +518,7 @@ class MainActivity : ComponentActivity() {
                                 onEventClick = { eventId ->
 
                                     eventsViewModel
-                                        .seleccionarEventoPorId(
-                                            eventId
-                                        )
+                                        .seleccionarEventoPorId(eventId)
 
                                     navController.navigate(
                                         Screen.EventDetail
@@ -569,9 +527,7 @@ class MainActivity : ComponentActivity() {
                                 },
 
                                 onNavigateToProfile = {
-                                    navigateToTab(
-                                        Screen.Perfil.route
-                                    )
+                                    navigateToTab(Screen.Perfil.route)
                                 },
 
                                 onNavigateToAdmin = {
@@ -587,13 +543,8 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // ==========================
-                        // DETALLE DE EVENTO
-                        // ==========================
-
-                        composable(
-                            Screen.EventDetail.route
-                        ) { entry ->
+                        // DETALLE DE EVENTO.
+                        composable(Screen.EventDetail.route) { entry ->
 
                             val eventId =
                                 entry.arguments
@@ -606,7 +557,6 @@ class MainActivity : ComponentActivity() {
                                         state.data.find {
                                             it.id == eventId
                                         }
-
                                     else -> null
                                 }
 
@@ -617,44 +567,27 @@ class MainActivity : ComponentActivity() {
                                     navController.popBackStack()
                                 },
 
-                                // Confirmar alerta y
-                                // conservar evidencia.
-                                onStatusChange = {
-                                    status, photoUri ->
-
-                                    eventsViewModel
-                                        .cambiarEstadoEvento(
-                                            eventoId = eventId,
-                                            nuevoEstado = status,
-                                            fotoUri = photoUri
-                                        )
+                                onStatusChange = { status, photoUri ->
+                                    eventsViewModel.cambiarEstadoEvento(
+                                        eventoId = eventId,
+                                        nuevoEstado = status,
+                                        fotoUri = photoUri
+                                    )
                                 },
 
-                                // NUEVA CONEXIÓN:
-                                // Resolver con motivo de cierre
-                                // y conservar evidencia.
-                                onCloseWithReason = {
-                                    reason, photoUri ->
-
-                                    eventsViewModel
-                                        .cambiarEstadoEvento(
-                                            eventoId = eventId,
-                                            nuevoEstado =
-                                                EstadoEvento.RESUELTO,
-                                            fotoUri = photoUri,
-                                            motivoCierre = reason
-                                        )
+                                onCloseWithReason = { reason, photoUri ->
+                                    eventsViewModel.cambiarEstadoEvento(
+                                        eventoId = eventId,
+                                        nuevoEstado = EstadoEvento.RESUELTO,
+                                        fotoUri = photoUri,
+                                        motivoCierre = reason
+                                    )
                                 }
                             )
                         }
 
-                        // ==========================
-                        // PERFIL
-                        // ==========================
-
-                        composable(
-                            Screen.Perfil.route
-                        ) {
+                        // PERFIL.
+                        composable(Screen.Perfil.route) {
 
                             ProfileScreen(
                                 user = currentUser,
@@ -680,8 +613,7 @@ class MainActivity : ComponentActivity() {
                                             .apply()
                                     }
 
-                                    authViewModel
-                                        .actualizarFotoPerfil(uri)
+                                    authViewModel.actualizarFotoPerfil(uri)
                                 },
 
                                 onLogout = {
@@ -692,25 +624,17 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate(
                                         Screen.Login.route
                                     ) {
-                                        popUpTo(
-                                            navController.graph.id
-                                        ) {
+                                        popUpTo(navController.graph.id) {
                                             inclusive = false
                                         }
-
                                         launchSingleTop = true
                                     }
                                 }
                             )
                         }
 
-                        // ==========================
-                        // ADMINISTRACIÓN TEMPORAL
-                        // ==========================
-
-                        composable(
-                            Screen.Admin.route
-                        ) {
+                        // ADMINISTRACIÓN TEMPORAL.
+                        composable(Screen.Admin.route) {
 
                             if (
                                 currentUser?.rol ==
@@ -724,9 +648,7 @@ class MainActivity : ComponentActivity() {
                                     onEventClick = { eventId ->
 
                                         eventsViewModel
-                                            .seleccionarEventoPorId(
-                                                eventId
-                                            )
+                                            .seleccionarEventoPorId(eventId)
 
                                         navController.navigate(
                                             Screen.EventDetail
@@ -735,16 +657,13 @@ class MainActivity : ComponentActivity() {
                                     },
 
                                     onNavigateToProfile = {
-                                        navigateToTab(
-                                            Screen.Perfil.route
-                                        )
+                                        navigateToTab(Screen.Perfil.route)
                                     },
 
                                     onNavigateToAdmin = {}
                                 )
 
                             } else {
-
                                 LaunchedEffect(Unit) {
                                     navController.popBackStack()
                                 }
