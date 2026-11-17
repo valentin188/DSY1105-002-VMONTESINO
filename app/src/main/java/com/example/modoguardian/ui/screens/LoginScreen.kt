@@ -15,6 +15,7 @@ import com.example.modoguardian.model.LoginUiState
 import com.example.modoguardian.ui.utils.WindowSizeClass
 import com.example.modoguardian.ui.utils.rememberWindowSizeClass
 import com.example.modoguardian.viewmodel.LoginViewModel
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun LoginScreen(
@@ -86,6 +87,7 @@ private fun EncabezadoLogo() {
     )
 }
 
+
 @Composable
 private fun FormularioLogin(
     state: LoginUiState,
@@ -146,5 +148,47 @@ private fun FormularioLogin(
         } else {
             Text("Iniciar sesión")
         }
+    }
+
+    Spacer(modifier = Modifier.height(20.dp))
+
+    // Separador
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        HorizontalDivider(
+            modifier = Modifier.weight(1f)
+        )
+
+        Text(
+            text = "  O  ",
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        HorizontalDivider(
+            modifier = Modifier.weight(1f)
+        )
+    }
+
+    Spacer(modifier = Modifier.height(20.dp))
+
+    // Botón visual de Google (sin funcionalidad)
+    OutlinedButton(
+        onClick = { },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp),
+        shape = MaterialTheme.shapes.small
+    ) {
+        Text(
+            text = "G",
+            color = Color(0xFF4285F4),
+            style = MaterialTheme.typography.titleLarge
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Text("Continuar con Google")
     }
 }
