@@ -14,7 +14,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         UserEntity::class,
         EventEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -45,16 +45,21 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_2_3 = object : Migration(2, 3) {
+        private val MIGRATION_2_3 = object : Migration(3, 4) {
             override fun migrate(
                 db: SupportSQLiteDatabase
             ) {
-
+                 db.execSQL(
+                     "ALTER TABLE eventos ADD COLUMN evidenciaVideoUri TEXT"
+                 )
                 db.execSQL(
-                    """
-                    ALTER TABLE eventos
-                    ADD COLUMN motivoCierre TEXT
-                    """.trimIndent()
+                    "ALTER TABLE eventos ADD COLUMN cameraId TEXT"
+                )
+                db.execSQL(
+                    "ALTER TABLE eventos ADD COLUMN reportadoPorId TEXT"
+                )
+                db.execSQL(
+                    "ALTER TABLE eventos ADD COLUMN reportadoPorNombre TEXT"
                 )
             }
         }
@@ -70,7 +75,8 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                     .addMigrations(
                         MIGRATION_1_2,
-                        MIGRATION_2_3
+                        MIGRATION_2_3,
+                        MIGRATION_3_4
                     )
                     .build()
                     .also {
