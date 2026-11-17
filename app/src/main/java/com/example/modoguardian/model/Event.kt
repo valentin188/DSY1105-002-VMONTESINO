@@ -32,4 +32,8 @@ data class Event(
     val fechaHora: String,
     val evidenciaFotoUri: String? = null,
     val motivoCierre: MotivoCierre? = null
+    val evidenciaVideoUri: String? = null,
+    val cameraId: String? = null,
+    val reportadoPorId: String? = null,
+    val reportadoPorNombre: String? = null
 )
