@@ -4,7 +4,6 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
-    id("com.google.gms.google-services")
 }
 
 val insercodeKeystorePath =
@@ -100,6 +99,9 @@ android {
 }
 
 dependencies {
+
+    // JETPACK COMPOSE
+
     val composeBom = platform(
         "androidx.compose:compose-bom:2024.06.00"
     )
@@ -139,6 +141,8 @@ dependencies {
         "androidx.compose.material3:material3-window-size-class:1.2.1"
     )
 
+    // ANDROID Y LIFECYCLE
+
     implementation(
         "androidx.core:core-ktx:1.13.1"
     )
@@ -159,6 +163,8 @@ dependencies {
         "androidx.navigation:navigation-compose:2.7.7"
     )
 
+    // RETROFIT Y API REST
+
     implementation(
         "com.squareup.retrofit2:retrofit:2.11.0"
     )
@@ -167,13 +173,13 @@ dependencies {
         "com.squareup.retrofit2:converter-gson:2.11.0"
     )
 
+    // CORRUTINAS
+
     implementation(
         "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0"
     )
 
-    implementation(
-        "org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.0"
-    )
+    // BASE DE DATOS LOCAL ROOM
 
     val roomVersion = "2.8.5"
 
@@ -189,25 +195,19 @@ dependencies {
         "androidx.room:room-compiler:$roomVersion"
     )
 
+    // DATASTORE
+
     implementation(
         "androidx.datastore:datastore-preferences:1.1.1"
     )
+
+    // CARGA DE IMÁGENES
 
     implementation(
         "io.coil-kt:coil-compose:2.6.0"
     )
 
-    implementation(
-        platform("com.google.firebase:firebase-bom:34.12.0")
-    )
-
-    implementation(
-        "com.google.firebase:firebase-auth"
-    )
-
-    implementation(
-        "com.google.firebase:firebase-firestore"
-    )
+    // AUTENTICACIÓN CON GOOGLE SIN FIREBASE
 
     implementation(
         "androidx.credentials:credentials:1.3.0"
@@ -221,12 +221,14 @@ dependencies {
         "com.google.android.libraries.identity.googleid:googleid:1.1.1"
     )
 
+    // PRUEBAS UNITARIAS
+
     testImplementation(
         "io.kotest:kotest-runner-junit5:5.8.6"
     )
 
     testImplementation(
-        "io.kotest:kotest-assertions-core:5.8.8"
+        "io.kotest:kotest-assertions-core:5.8.6"
     )
 
     testImplementation(
@@ -242,6 +244,8 @@ dependencies {
     )
 
     testImplementation(libs.junit)
+
+    // PRUEBAS DE ANDROID
 
     androidTestImplementation(
         "androidx.compose.ui:ui-test-junit4"
