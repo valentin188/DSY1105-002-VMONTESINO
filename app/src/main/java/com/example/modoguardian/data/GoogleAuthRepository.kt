@@ -39,6 +39,8 @@ class GoogleAuthRepository(
             context.applicationContext
         ).userDao()
 
+    // INICIAR SESIÓN CON GOOGLE
+
     suspend fun iniciarSesion(): User {
 
         require(
@@ -48,6 +50,8 @@ class GoogleAuthRepository(
         ) {
             "Falta configurar el Client ID de Google."
         }
+
+        // GENERAR NONCE DE SEGURIDAD
 
         val bytes = ByteArray(32)
 
@@ -59,6 +63,8 @@ class GoogleAuthRepository(
                 Base64.NO_WRAP or
                 Base64.NO_PADDING
         )
+
+        // SOLICITAR CUENTA DE GOOGLE
 
         val googleOption =
             GetSignInWithGoogleOption.Builder(
@@ -94,6 +100,8 @@ class GoogleAuthRepository(
                 credential.data
             )
 
+        // VERIFICAR TOKEN
+
         val datos = verificarToken(
             googleCredential.idToken,
             nonce
@@ -121,6 +129,8 @@ class GoogleAuthRepository(
 
         return withContext(Dispatchers.IO) {
 
+            // BUSCAR USUARIO EXISTENTE
+
             val usuarioExistente =
                 userDao.buscarPorGoogleId(googleId)
 
@@ -129,6 +139,8 @@ class GoogleAuthRepository(
                 convertirUsuario(usuarioExistente)
 
             } else {
+
+                // VALIDAR CORREO
 
                 require(
                     correo !in setOf(
@@ -145,6 +157,8 @@ class GoogleAuthRepository(
                 ) {
                     "Ya existe una cuenta con este correo."
                 }
+
+                // REGISTRAR USUARIO EN ROOM
 
                 val nuevoUsuario = UserEntity(
 
@@ -180,6 +194,8 @@ class GoogleAuthRepository(
         }
     }
 
+    // VERIFICAR TOKEN DE GOOGLE
+
     private suspend fun verificarToken(
         token: String,
         nonce: String
@@ -211,11 +227,15 @@ class GoogleAuthRepository(
 
             val datos = JSONObject(respuesta)
 
+            // VALIDAR IDENTIFICADOR DE LA APP
+
             require(
                 datos.optString("aud") == WEB_CLIENT_ID
             ) {
                 "La cuenta no corresponde a esta aplicación."
             }
+
+            // VALIDAR PROVEEDOR
 
             require(
                 datos.optString("iss") in setOf(
@@ -226,6 +246,8 @@ class GoogleAuthRepository(
                 "Proveedor de autenticación incorrecto."
             }
 
+            // VALIDAR EXPIRACIÓN
+
             require(
                 datos.optLong("exp") >
                     System.currentTimeMillis() / 1000
@@ -233,11 +255,15 @@ class GoogleAuthRepository(
                 "La sesión de Google ha expirado."
             }
 
+            // VALIDAR CORREO
+
             require(
                 datos.optString("email_verified") == "true"
             ) {
                 "El correo de Google no está verificado."
             }
+
+            // VALIDAR NONCE
 
             val partes = token.split(".")
 
@@ -271,12 +297,16 @@ class GoogleAuthRepository(
         }
     }
 
+    // CERRAR SESIÓN DE GOOGLE
+
     suspend fun cerrarSesion() {
 
         credentialManager.clearCredentialState(
             ClearCredentialStateRequest()
         )
     }
+
+    // CONVERTIR USUARIO ROOM AL MODELO USER
 
     private fun convertirUsuario(
         usuario: UserEntity
@@ -288,3 +318,12 @@ class GoogleAuthRepository(
 
             nombre =
                 "${usuario.nombre} ${usuario.apellido}".trim(),
+
+            email = usuario.email,
+
+            rol = Role.OPERADOR,
+
+            fotoPerfilUri = usuario.fotoPerfilUri
+        )
+    }
+}
