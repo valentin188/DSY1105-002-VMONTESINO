@@ -27,8 +27,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 
-import com.example.modoguardian.data.FirebaseAccess
+import com.example.modoguardian.data.GoogleAuthRepository
 import com.example.modoguardian.data.GuardianRepository
+
 import com.example.modoguardian.model.EstadoEvento
 import com.example.modoguardian.model.Role
 
@@ -52,9 +53,12 @@ class MainActivity : ComponentActivity() {
     private val loginViewModel: LoginViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+
         super.onCreate(savedInstanceState)
 
         GuardianRepository.inicializar(applicationContext)
+
+        val googleRepository = GoogleAuthRepository(this)
 
         val preferences = getSharedPreferences(
             "insercode_profile_preferences",
@@ -306,7 +310,7 @@ class MainActivity : ComponentActivity() {
                                         Text("Inicio")
                                     }
                                 )
-
+                                
                                 NavigationBarItem(
 
                                     selected = currentRoute == "cameras",
@@ -708,9 +712,9 @@ class MainActivity : ComponentActivity() {
                                         nuevoEstado =
                                             EstadoEvento.RESUELTO,
 
-                                        fotoUri = photoUri,
+                                        motivoCierre = reason,
 
-                                        motivoCierre = reason
+                                        fotoUri = photoUri
                                     )
                                 }
                             )
@@ -751,15 +755,11 @@ class MainActivity : ComponentActivity() {
 
                                 onLogout = {
 
-                                    FirebaseAccess.cerrarSesion()
-
                                     lifecycleScope.launch {
 
                                         runCatching {
 
-                                            FirebaseAccess.limpiarCredenciales(
-                                                this@MainActivity
-                                            )
+                                            googleRepository.cerrarSesion()
                                         }
                                     }
 
@@ -772,7 +772,7 @@ class MainActivity : ComponentActivity() {
                                     ) {
 
                                         popUpTo(navController.graph.id) {
-                                            inclusive = false
+                                            inclusive = true
                                         }
 
                                         launchSingleTop = true
@@ -780,7 +780,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
-
+                        
                         composable(Screen.Admin.route) {
 
                             if (
