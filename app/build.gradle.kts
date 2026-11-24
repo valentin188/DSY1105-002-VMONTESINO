@@ -100,7 +100,6 @@ android {
 }
 
 dependencies {
-
     val composeBom = platform(
         "androidx.compose:compose-bom:2024.06.00"
     )
@@ -172,6 +171,10 @@ dependencies {
         "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0"
     )
 
+    implementation(
+        "org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.0"
+    )
+
     val roomVersion = "2.8.5"
 
     implementation(
@@ -192,6 +195,30 @@ dependencies {
 
     implementation(
         "io.coil-kt:coil-compose:2.6.0"
+    )
+
+    implementation(
+        platform("com.google.firebase:firebase-bom:34.12.0")
+    )
+
+    implementation(
+        "com.google.firebase:firebase-auth"
+    )
+
+    implementation(
+        "com.google.firebase:firebase-firestore"
+    )
+
+    implementation(
+        "androidx.credentials:credentials:1.3.0"
+    )
+
+    implementation(
+        "androidx.credentials:credentials-play-services-auth:1.3.0"
+    )
+
+    implementation(
+        "com.google.android.libraries.identity.googleid:googleid:1.1.1"
     )
 
     testImplementation(
